@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.card.common.mapper.CommonMapper">
+	<select id="selectUser" parameterType="string" resultType="kr.co.poscoict.card.common.model.User">
+		/* CommonMapper.selectUser 사용자 정보 조회 */
+		SELECT
+			EMP_ID
+			, EMPCD
+			, HNAME
+			, EMAIL
+			, JIKCK
+			, JIKGB
+			, DPTCD
+			, DPTNM
+			, PRE_DPTCD
+			, PRE_DPTNM
+			, SUPER_EMPCD
+			, SUPER_HNAME
+			, SUPER_EMAIL
+			, COST_CENTER
+			, COST_CENTER_NAME
+			, USER_ID
+		FROM MOBILE_EMP_V
+		WHERE EMPCD = #{_parameter}
+	</select>
+	
+	<select id="selectTargetCount" parameterType="string" resultType="int">
+		/* CommonMapper.selectTargetCount 정산대상 건수조회 */
+		SELECT
+			COUNT(ECAL.SEQ)
+		FROM EXAP_CARD_APPROVAL_LIST	ECAL
+		WHERE ECAL.USER_CHECK_FLAG = 'N'
+			AND NVL(ECAL.TRANSFER_FLAG, 'N') NOT IN ('Y', 'C')
+			AND ECAL.TRANSDATE >= TO_CHAR(ADD_MONTHS(SYSDATE, -2), 'YYYY-MM-DD')
+			AND NVL(ECAL.CURRCODE, 'USD') = 'KRW'
+			AND ECAL.CLASS1 = 'A'
+			AND ECAL.EMPLOYEE_NUMBER = #{_parameter}	/* EMPCD */
+	</select>
+</mapper>

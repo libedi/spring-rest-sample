@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<white-url>
+	<src>
+		<domain name="https://www.poscoict.co.kr" desc="POSCO ICT">
+			<pattern>https://www.poscoict.co.kr*</pattern>
+		</domain>
+	</src>
+</white-url>

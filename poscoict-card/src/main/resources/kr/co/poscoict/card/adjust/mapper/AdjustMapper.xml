@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.card.adjust.mapper.AdjustMapper">
+	
+	<select id="selectTargetCount" parameterType="string" resultType="int">
+		/* AdjustMapper.selectTargetCount 정산대상 건수조회 */
+		SELECT
+			COUNT(*)
+		FROM EXAP_CARD_APPROVAL_LIST	ECAL
+		WHERE ECAL.USER_CHECK_FLAG = 'N'
+			AND NVL(ECAL.TRANSFER_FLAG, 'N') NOT IN ('Y', 'C')
+			AND ECAL.TRANSDATE >= TO_CHAR(ADD_MONTHS(SYSDATE, -2), 'YYYY-MM-DD')
+			AND NVL(ECAL.CURRCODE, 'USD') = 'KRW'
+			AND ECAL.CLASS1 = 'A'
+			AND ECAL.EMPLOYEE_NUMBER = #{_parameter}	/* EMPCD */
+	</select>
+	
+	<select id="selectToDate" resultType="string">
+		/* AdjustMapper.selectToDate 법인카드 To 기간 조회 */
+		SELECT
+			FL.MEANING
+		FROM FND_LOOKUP_VALUES	FL
+		WHERE FL.LOOKUP_TYPE = 'EXAP_CARD_INTERFACE_DATE'
+			AND FL.ENABLED_FLAG = 'Y'
+			AND FL.LOOKUP_CODE  = 'BASE_DATE'
+	</select>
+	
+	<select id="selectExceptCodeList" resultType="kr.co.poscoict.card.common.model.Code">
+		/* AdjustMapper.selectExceptCodeList 정산제외 사유코드 조회 */
+		SELECT
+			FLV.MEANING	AS CODE_NM
+			, FLV.LOOKUP_CODE AS CODE
+		FROM FND_LOOKUP_VALUES    FLV
+		WHERE FLV.LOOKUP_TYPE = 'EXAP_CARD_CANCEL_REASON'
+			AND FLV.VIEW_APPLICATION_ID = 200
+			AND FLV.ENABLED_FLAG = 'Y'
+			AND FLV.LOOKUP_CODE <![CDATA[<>]]> 'N'
+		ORDER BY FLV.LOOKUP_CODE
+	</select>
+	
+	<select id="selectTargetCardList" parameterType="string" resultType="kr.co.poscoict.card.adjust.model.Card">
+		/* AdjustMapper.selectTargetCardList 대상카드 조회 */
+		SELECT
+			ECIV.CARD_NUMBER
+			, ECIV.CARD_BRAND_LOOKUP_CODE
+			, ECIV.PERSON_NAME
+		FROM EXAP_CARD_INFO_V	ECIV
+		WHERE EXISTS (
+						SELECT 1
+						FROM EXAP_CARD_AUTHORITY    ECA
+						WHERE ECA.CARD_ID = ECIV.CARD_ID
+							AND ECA.USER_NO = #{_parameter}	/* EMPCD */
+					)
+		ORDER BY PERSON_NAME
+				, CARD_NUMBER
+	</select>
+	
+	<select id="selectCardHistoryList" parameterType="kr.co.poscoict.card.adjust.model.CardSearch" resultType="kr.co.poscoict.card.adjust.model.CardHistory">
+		/* AdjustMapper.selectCardHistoryList 카드 사용내역 리스트 조회 */
+		SELECT
+			ECAL.SEQ
+			, TO_CHAR(TO_DATE(ECAL.TRANSDATE, 'YYYY-MM-DD'), 'YY.MM.DD') AS TRANSDATE
+		    , ECAL.TRANSTIME
+		    , ECAL.MERCHNAME
+		    , ECAL.APPRTOT					/* 금액 */
+		    , BXAP_MOBILE_PKG.FN_CARD_STATUS_CD(ECAL.SEQ) AS STAT_CD
+		    , BXAP_MOBILE_PKG.FN_CARD_STATUS_NM(ECAL.SEQ) AS STAT_NM
+		    , ECAL.APPRNO
+		    , ECAL.APPRAMT1 AS APPRAMT		/* 공급가 */
+		    , ECAL.VAT1 AS VAT				/* 부가세 */
+		    , ECAL.TIPS1 AS TIPS
+		    , ECAL.TAXTYPE
+		    , ECAL.MCCNAME
+		    , ECAL.MERCHADDR1 || ECAL.MERCHADDR2 AS MERCHADDR
+		    , ECAL.cardno
+		    , ECAL.TRANSFER_FLAG	/* N : 정산제외,  정산처리 가능 */
+		FROM EXAP_CARD_APPROVAL_LIST   ECAL
+		WHERE   ECAL.CURRCODE = 'KRW'
+			AND ECAL.CLASS1 = 'A'
+			AND ECAL.EMPLOYEE_NUMBER = #{user.empcd}
+			<if test='cardno != null and !cardno.equals("ALL")'>
+			AND ECAL.cardno = #{cardno}
+			</if>
+			AND ECAL.TRANSDATE >= #{from}
+			AND ECAL.TRANSDATE <![CDATA[<=]]> #{to}
+			<choose>
+				<!-- 미처리 -->
+				<when test='status != null and status.equals("N")'>
+				AND BXAP_MOBILE_PKG.FN_CARD_STATUS_CD(ECAL.SEQ) = 'N'
+				</when>
+				<!-- 정산완료 -->
+				<when test='status != null and status.equals("Y")'>
+				AND ECAL.USER_CHECK_FLAG = 'Y'
+				AND BXAP_MOBILE_PKG.FN_CARD_STATUS_CD(ECAL.SEQ) = 'Y'
+				</when>
+			</choose>
+		ORDER BY  STAT_CD ASC
+				, STAT_NM DESC
+				, ECAL.TRANSDATE DESC
+				, ECAL.TRANSTIME DESC
+	</select>
+	
+	<select id="selectCardHistoryDetail" parameterType="int" resultType="kr.co.poscoict.card.adjust.model.CardHistory">
+		/* AdjustMapper.selectCardHistoryDetail 카드사용 상세내역 조회 */
+		SELECT
+			ECAL.SEQ
+			, TO_CHAR(TO_DATE(ECAL.TRANSDATE, 'YYYY-MM-DD'), 'YY.MM.DD') AS TRANSDATE
+		    , ECAL.TRANSTIME
+		    , ECAL.MERCHNAME
+		    , ECAL.APPRTOT
+		    , BXAP_MOBILE_PKG.FN_CARD_STATUS_CD(ECAL.SEQ) AS STAT_CD
+		    , BXAP_MOBILE_PKG.FN_CARD_STATUS_NM(ECAL.SEQ) AS STAT_NM
+		    , ECAL.APPRNO
+		    , CASE
+		    	WHEN TAXTYPE = '일반' AND NOT(ABS((APPRAMT1 * 0.1) - VAT1) > 100) THEN ECAL.APPRAMT1 
+		    	ELSE ECAL.APPRTOT 
+		    	END AS APPRAMT /* 부가세 자동 미포함일시 공급가를 총액으로*/
+		    , CASE
+		    	WHEN TAXTYPE = '일반' AND NOT(ABS((APPRAMT1 * 0.1) - VAT1) > 100) THEN ECAL.VAT1
+		    	ELSE 0 END AS VAT /* 부가세 자동 미포함일시 부가세를 0원으로*/
+		    , ECAL.TIPS1 AS TIPS
+		    , ECAL.MCCNAME
+		    , ECAL.MERCHADDR1 || ECAL.MERCHADDR2 AS MERCHADDR
+		    , ECAL.CARDNO
+		    , CASE
+		    	WHEN TAXTYPE = '일반' AND NOT(ABS((APPRAMT1 * 0.1) - VAT1) > 100) THEN 'Y'
+		    	ELSE 'N'
+		    END AS HAS_VAT_YN    /* 부가세 포함여부 */
+		    , BXAP_MOBILE_PKG.FN_DEFALT_GLDATE(ECAL.TRANSDATE) AS INIT_DATE
+		FROM EXAP_CARD_APPROVAL_LIST   ECAL
+		WHERE ECAL.SEQ = #{_parameter}
+	</select>
+	
+	<select id="selectApprInfo" parameterType="kr.co.poscoict.card.adjust.model.CardHistory" resultType="kr.co.poscoict.card.adjust.model.CardHistory">
+		/* AdjustMapper.selectApprInfo 승인정보 조회 */
+		SELECT
+			APPR_PERSON
+			, TO_CHAR(APPR_DATE, 'YYYY.MM.DD') AS APPR_DATE
+			, ( SELECT
+					WNA.TEXT_VALUE
+				FROM WF_NOTIFICATION_ATTRIBUTES   WNA
+				WHERE WNA.NOTIFICATION_ID = NOTI_ID
+					AND WNA.NAME = 'NOTE'
+			) AS NOTE
+		FROM (
+			SELECT
+				WN.NOTIFICATION_ID  AS NOTI_ID
+				, WN.TO_USER          AS APPR_PERSON
+				, WN.END_DATE         AS APPR_DATE
+			FROM WF_NOTIFICATIONS    WN
+			WHERE WN.MESSAGE_TYPE = 'AXAP001W'
+				AND WN.MESSAGE_NAME = 'APPROVE_REQUISITION'
+				AND EXISTS (
+							SELECT '@'
+							FROM EXAP_INVOICE_ALLOC_HEADER EIAH
+							WHERE EIAH.ATTRIBUTE2 = #{cardno}
+								AND EIAH.ATTRIBUTE3 = #{apprno}
+								AND EIAH.CARD_SEQ = #{seq}
+								AND EIAH.ITEM_KEY = WN.ITEM_KEY
+								AND EXISTS (	SELECT '@'
+												FROM AP_INVOICES_ALL   AIA
+				                              	WHERE AIA.INVOICE_ID = EIAH.INVOICE_ID
+				                                AND AIA.CANCELLED_DATE IS NULL
+				                           )
+				)
+			ORDER BY WN.NOTIFICATION_ID
+		)
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectValidTermYn" parameterType="string" resultType="string">
+		/* AdjustMapper.selectValidTermYn 결산검증 기간여부 조회 */
+		SELECT
+			EXGL_COMMON_PKG.GET_AP_OPEN(#{_parameter})
+		FROM DUAL	/* N : 결산검증진행중 */
+	</select>
+	
+	<select id="selectValidTermMessage" resultType="string">
+		/* AdjustMapper.selectValidTermMessage 결산검증 오류 메시지 */
+		SELECT
+			FLV.DESCRIPTION
+		FROM FND_LOOKUP_VALUES   FLV
+		WHERE FLV.LOOKUP_TYPE = 'AXAP_INVOICE_OPEN_CLOSE'
+			AND FLV.ENABLED_FLAG = 'Y'
+			AND FLV.LOOKUP_CODE = 'MSG'
+	</select>
+	
+	<select id="selectDuplicateCount" parameterType="kr.co.poscoict.card.adjust.model.CardHistory" resultType="int">
+		/* AdjustMapper.selectDuplicateCount 정산 중복생성 검증 */
+		SELECT COUNT(*) AS CNT
+		  FROM EXAP_INVOICE_ALLOC_HEADER A
+		 WHERE A.ATTRIBUTE2 = #{cardno}
+		   AND A.ATTRIBUTE3 = #{apprno}
+		   AND A.INVOICE_ID IS NULL
+        /* 정산 중복생성 검증 시 AP INVOICE의 경우 속도저하문제로 인해 검증 제외 */
+	</select>
+	
+	<update id="callAdjustExcept" statementType="CALLABLE" parameterType="kr.co.poscoict.card.adjust.model.CardExcept">
+		/* AdjustMapper.callAdjustExcept 정산제외 요청 */
+		{
+			call BXAP_MOBILE_PKG.ADJUST_EXCPT
+			(
+						  #{seq,			mode=IN, javaType=int,    jdbcType=NUMERIC}
+						, #{exceptCode,		mode=IN, javaType=string, jdbcType=VARCHAR}
+						, #{user.userId,	mode=IN, javaType=int,    jdbcType=NUMERIC}
+						, #{returnCode,		mode=OUT, javaType=string, jdbcType=VARCHAR}
+						, #{returnMessage,	mode=OUT, javaType=string, jdbcType=VARCHAR}
+			)
+		}
+	</update>
+	
+	<update id="callAdjustCancel" statementType="CALLABLE" parameterType="kr.co.poscoict.card.adjust.model.CardExcept">
+		/* AdjustMapper.callAdjustCancel 정산취소 요청 */
+		{
+			call BXAP_MOBILE_PKG.ADJUST_CANCEL
+			(
+						  #{seq,			mode=IN, javaType=int,    jdbcType=NUMERIC}
+						, #{user.userId,	mode=IN, javaType=int,    jdbcType=NUMERIC}
+						, #{returnCode,		mode=OUT, javaType=string, jdbcType=VARCHAR}
+						, #{returnMessage,	mode=OUT, javaType=string, jdbcType=VARCHAR}
+			)
+		}
+	</update>
+	
+	<select id="selectAutoApproveAmt" parameterType="int" resultType="long">
+		/* AdjustMapper.selectAutoApproveAmt 결재권자의 전결금액 조회 */
+		SELECT NVL((SELECT	AUTO_APPROVE_AMT
+					FROM	AXAP_APPROVAL_USER    AAU
+					WHERE	AAU.ENABLED_FLAG = 'Y'
+					AND 	AAU.APPROVAL_FLAG = 'Y'
+					AND 	AAU.USER_ID = #{_parameter}
+				),0) AS AUTO_APPROVE_AMT
+		FROM   DUAL
+	</select>
+	<select id="selectSelfApproveAmt" parameterType="int" resultType="long">
+		/* AdjustMapper.selectSelfApproveAmt 자가승인 전결금액 조회 */
+		SELECT NVL((SELECT	AAU.ATTRIBUTE4
+					FROM	AXAP_APPROVAL_USER    AAU
+					WHERE	AAU.ENABLED_FLAG = 'Y'
+					AND 	AAU.APPROVAL_FLAG = 'Y'
+					AND 	AAU.USER_ID = #{_parameter}
+				),0) AS AUTO_APPROVE_AMT
+		FROM   DUAL
+	</select>
+</mapper>

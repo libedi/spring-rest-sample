@@ -1,0 +1,104 @@
+package kr.co.poscoict.card.common.util;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.servlet.view.AbstractView;
+
+import kr.co.poscoict.card.common.model.DownloadInfo;
+import kr.co.poscoict.card.common.model.DownloadInfo.DownloadInfoBuilder;
+import kr.co.poscoict.card.file.model.FileInfo;
+
+/**
+ * File Download View
+ * @author Sangjun, Park
+ *
+ */
+@Component
+public class FileDownloadView extends AbstractView {
+	@Autowired
+	private ServletContext servletContext;
+	
+	@Override
+	protected void renderMergedOutputModel(Map<String, Object> model, HttpServletRequest request, 
+			HttpServletResponse response) throws Exception {
+		// 다운로드 정보 추출
+		DownloadInfo info = this.createDownloadInfo(model, request);
+		// response 설정
+		response.setContentType(info.getContentType());
+		response.setContentLength(info.getContentLength());
+		for(Entry<String, List<String>> entry : info.getHttpHeaders().entrySet()) {
+			response.addHeader(entry.getKey(), entry.getValue().stream().collect(Collectors.joining(";")));
+		}
+		// download
+		FileCopyUtils.copy(info.getInputStream(), response.getOutputStream());
+	}
+	
+	/**
+	 * 다운로드 정보 추출
+	 * @param model
+	 * @param request
+	 * @return
+	 * @throws IOException
+	 */
+	private DownloadInfo createDownloadInfo(Map<String, Object> model, HttpServletRequest request) throws IOException {
+		Object obj = model.get("model");
+		DownloadInfoBuilder builder = new DownloadInfoBuilder();
+		if(obj instanceof FileInfo) {
+			FileInfo fileInfo = (FileInfo) obj;
+			Path downloadFile = Paths.get(fileInfo.getUploadPath(), fileInfo.getUploadFileNm());
+			String mimeType = this.servletContext.getMimeType(downloadFile.toString());
+			HttpHeaders headers = new HttpHeaders();
+			headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + this.getDownloadFilename(fileInfo, request) + "\";");
+			headers.add("Content-Transfer-Encoding", "binary");
+			builder
+				.setInputStream(Files.newInputStream(downloadFile))
+				.setHttpHeaders(headers)
+				.setContentType(mimeType != null ? mimeType : MediaType.APPLICATION_OCTET_STREAM_VALUE)
+				.setContentLength((int) downloadFile.toFile().length());
+		} else if(obj instanceof ResponseEntity) {
+			@SuppressWarnings("unchecked")
+			ResponseEntity<byte[]> resp = (ResponseEntity<byte[]>) obj;
+			builder
+				.setInputStream(new ByteArrayInputStream(resp.getBody()))
+				.setHttpHeaders(resp.getHeaders())
+				.setContentType(resp.getHeaders().getContentType().toString())
+				.setContentLength(resp.getBody().length);
+		}
+		return builder.build();
+	}
+	
+	/**
+	 * 다운로드 할 원본 파일명 
+	 * @param fileInfo
+	 * @param request
+	 * @return
+	 * @throws UnsupportedEncodingException
+	 */
+	private String getDownloadFilename(FileInfo fileInfo, HttpServletRequest request) throws UnsupportedEncodingException {
+		String browser = request.getHeader(HttpHeaders.USER_AGENT).toLowerCase();
+		if(browser.contains("msie") || browser.contains("trident") || browser.contains("edge/")){
+			return URLEncoder.encode(fileInfo.getOriginalFileNm().replaceAll("\"", "").trim(), "UTF-8").replaceAll("\\+", "\\ ");
+		}
+		return new String(fileInfo.getOriginalFileNm().replaceAll("\"", "").trim().getBytes("UTF-8"), "ISO-8859-1");
+	}
+}
