@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.push.send.mapper.PushMapper">
+	<select id="selectPushEnable" parameterType="string" resultType="boolean">
+		/* PushMapper.selectPushEnable 푸시발송가능여부 조회 */
+		SELECT
+			<![CDATA[
+			CASE
+				WHEN PUSH_YN = 'Y' THEN
+					CASE
+						WHEN POSITION(TO_CHAR(NOW(), 'D') IN PUSH_WEEK) > 0 THEN
+							CASE
+								WHEN PUSH_S_TIME IS NULL AND PUSH_E_TIME IS NULL THEN TRUE
+								WHEN PUSH_S_TIME < PUSH_E_TIME AND PUSH_S_TIME <= TO_CHAR(NOW(), 'HH24MI') AND PUSH_E_TIME >= TO_CHAR(NOW(), 'HH24MI') THEN TRUE
+								WHEN PUSH_S_TIME > PUSH_E_TIME AND NOT (PUSH_E_TIME <= TO_CHAR(NOW(), 'HH24MI') AND PUSH_S_TIME >= TO_CHAR(NOW(), 'HH24MI')) THEN TRUE
+								ELSE FALSE
+							END
+						ELSE FALSE
+					END
+				ELSE FALSE
+			END AS IS_PUSH
+			]]>
+		FROM MW_PUSH_CHECK
+		WHERE EMPCD = #{_parameter}
+	</select>
+</mapper>

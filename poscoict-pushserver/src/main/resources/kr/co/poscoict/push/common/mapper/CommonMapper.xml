@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.push.common.mapper.CommonMapper">
+	<select id="selectUser" parameterType="string" resultType="kr.co.poscoict.push.common.model.User">
+		/* CommonMapper.selectUser 사용자정보조회 */
+		SELECT
+			SUBSTR(EMAIL, 0, INSTR(EMAIL, '@')-1) AS EP_ID
+			, EMP_ID
+			, EMPCD
+			, HNAME
+			, EMAIL
+			, JIKCK
+			, JIKGB
+			, DPTCD
+			, DPTNM
+			, PRE_DPTCD
+			, PRE_DPTNM
+			, SUPER_EMPCD
+			, SUPER_HNAME
+			, SUPER_EMAIL
+			, COST_CENTER
+			, COST_CENTER_NAME
+			, USER_ID
+		FROM MOBILE_EMP_V
+		WHERE EMPCD = #{_parameter}
+	</select>
+	
+</mapper>

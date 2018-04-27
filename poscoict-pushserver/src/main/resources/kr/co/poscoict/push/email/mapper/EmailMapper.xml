@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.push.email.mapper.EmailMapper">
+	<select id="insertEmail" parameterType="kr.co.poscoict.push.email.model.ReferMail" resultType="int">
+		/* EmailMapper.insertEmail 참조자 이메일 발송 */
+		INSERT
+		INTO EXHR.IS_DUTY_REFER (
+			SEQ
+			, SEND_GUBUN
+			, DL_ORDER_ID
+			, FROM_EMPID
+			, FROM_EMAIL
+			, TO_EMPID
+			, TO_EMAIL
+			, APPROVED_FLAG
+			, SEND_FLAG
+			, CREATION_DATE
+			, CREATED_BY
+		)
+		SELECT
+			(SELECT NVL(MAX(SEQ), 0) FROM EXHR.IS_DUTY_REFER) + ROWNUM
+			, #{sendGubun}
+			, #{dlOrderId}
+			, #{fromEmpid}
+			, #{fromEmail}
+			, IP.EMP_ID
+			, IP.EMAIL
+			, #{approvedFlag}
+			, 'N'
+			, SYSDATE
+			, #{fromEmpid}
+		FROM IS_PE01_V IP
+		WHERE IP.EMP_ID IN
+		<foreach collection="toEmpid" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</select>
+	
+	<update id="updateEmail" parameterType="kr.co.poscoict.push.email.model.ReferMail">
+		/* EmailMapper.updateEmail 참조자 이메일 수정 */
+		UPDATE EXHR.IS_DUTY_REFER
+		SET
+			APPROVED_FLAG = #{approveFlag},
+			LASTUPDATE_DATE = SYSDATE,
+			LASTUPDATE_BY = #{fromEmpid}
+		<where>
+			<if test='seq != null and seq != ""'>
+			SEQ = #{seq}
+			</if>
+			<if test='seqList != null'>
+				SEQ IN
+				<foreach collection="seqList" item="item" open="(" close=")" separator=",">
+				#{item}
+				</foreach>
+			</if>
+		</where>
+	</update>
+	
+	<select id="selectEmail" parameterType="kr.co.poscoict.push.email.model.ReferMail" resultType="kr.co.poscoict.push.email.model.Refer">
+		SELECT
+			SEQ
+			, SEND_GUBUN
+			, DL_ORDER_ID
+			, FROM_EMPID
+			, FROM_EMAIL
+			, TO_EMPID
+			, TO_EMAIL
+			, APPROVED_FLAG
+			, SEND_FLAG
+		FROM EXHR.IS_DUTY_REFER
+		WHERE 1=1
+			<if test='seq != null and seq != ""'>
+			AND SEQ = #{seq}
+			</if>
+			<if test='dlOrderId != null and dlOrderId != ""'>
+			AND DL_ORDER_ID = #{dlOrderId}
+			</if>
+			<if test='fromEmpid != null and fromEmpid != ""'>
+			AND FROM_EMPID = #{fromEmpid}
+			</if>
+			<if test='sendGubun != null and sendGubun != ""'>
+			AND SEND_GUBUN = #{sendGubun}
+			</if>
+			<if test='approvedFlag != null and approvedFlag != ""'>
+			AND APPROVED_FLAG = #{approvedFlag}
+			</if>
+			<if test='sendFlag != null and sendFlag != ""'>
+			AND SEND_FLAG = #{sendFlag}
+			</if>
+	</select>
+</mapper>
