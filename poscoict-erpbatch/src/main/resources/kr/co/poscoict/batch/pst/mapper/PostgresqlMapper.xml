@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.batch.pst.mapper.PostgresqlMapper">
+	<insert id="insertPushInfo" parameterType="kr.co.poscoict.batch.model.PushInfo">
+		/* PostgresqlMapper.insertPushInfo ERP 푸시건수등록 */
+		INSERT INTO MW_PUSH_CHECK (
+			EMPCD
+			, PRE_CNT
+			, NOW_CNT
+			, PUSH_WEEK
+		) VALUES (
+			#{empcd}
+			, #{preCnt, jdbcType=NUMERIC}
+			, #{nowCnt, jdbcType=NUMERIC}
+			, '2|3|4|5|6|7|1'
+		) ON CONFLICT (EMPCD)
+		DO UPDATE
+		SET
+			PRE_CNT = #{preCnt, jdbcType=NUMERIC}
+			, NOW_CNT = #{nowCnt, jdbcType=NUMERIC}
+	</insert>
+	
+	<select id="selectPushInfo" parameterType="string" resultType="kr.co.poscoict.batch.model.PushInfo">
+		/* PostgresqlMapper.selectPushInfo 푸시대상 조회 */
+		SELECT
+			EMPCD
+			, PRE_CNT
+			, NOW_CNT
+		FROM MW_PUSH_CHECK
+		WHERE EMPCD = #{_parameter}
+	</select>
+	
+	<select id="selectPushTarget" parameterType="hashmap" resultType="kr.co.poscoict.batch.model.PushInfo">
+		/* PostgresqlMapper.selectPushTarget 푸시대상 조회 */
+		SELECT
+			EMPCD
+		FROM MW_PUSH_CHECK
+		WHERE NOW_CNT > PRE_CNT
+		LIMIT #{_pagesize}
+		OFFSET #{_skiprows}
+	</select>
+</mapper>

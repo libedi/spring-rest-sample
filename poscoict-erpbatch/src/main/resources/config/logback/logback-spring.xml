@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<property name="LOG_PATH" value="/home/mwpu/log"/>
+	<property name="SYS_NAME" value="batch"/>
+	<property name="LOG_PATTERN" value="[%d{yyyy-MM-dd HH:mm:ss}][%-5level] --- [%thread] %logger{36} : %msg %n"/>
+	
+ 	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+    
+	<appender name="dailyRollingFileAppender"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${LOG_PATH}/${SYS_NAME}/batch.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${LOG_PATH}/${SYS_NAME}/batch.%d{yyyyMMdd}_%i.log</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+    			<maxFileSize>500MB</maxFileSize>
+    		</timeBasedFileNamingAndTriggeringPolicy>
+			<maxHistory>30</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>${LOG_PATTERN}</pattern>
+		</encoder>
+	</appender>
+ 
+	<logger name="org.springframework" level="INFO"/>
+    <logger name="org.mybatis.spring" value="INFO"/>
+ 
+	<root level="DEBUG">
+        <appender-ref ref="console" />
+		<appender-ref ref="dailyRollingFileAppender" />
+	</root>
+</configuration>

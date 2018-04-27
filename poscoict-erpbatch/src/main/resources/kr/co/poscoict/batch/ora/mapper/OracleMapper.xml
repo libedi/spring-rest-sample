@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.batch.ora.mapper.OracleMapper">
+	<select id="selectUser" parameterType="hashmap" resultType="kr.co.poscoict.batch.model.User">
+		/* OracleMapper.selectUser 사용자정보조회 */
+		SELECT
+			EMPCD
+			, EMAIL
+		FROM (
+			SELECT
+				ROWNUM AS RNUM
+				, EMPCD
+				, EMAIL
+			FROM MOBILE_EMP_V
+			WHERE ROWNUM <![CDATA[<=]]> (#{_page} + 1) * #{_pagesize}
+				<if test='empcd != null and empcd != ""'>
+				AND EMPCD = #{empcd}
+				</if>
+		) A
+		WHERE A.RNUM > #{_skiprows}
+	</select>
+</mapper>
