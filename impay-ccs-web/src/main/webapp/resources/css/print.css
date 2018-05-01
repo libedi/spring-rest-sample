@@ -1,0 +1,20 @@
+@charset "utf-8";
+
+@media print {
+	body {background:transprent; color:#000;}
+	
+	h5 {font-size:15pt !important; font-weight:bold; color:#000; padding:0 0 15px 0 !important;}
+	.unit {font-size:10pt; color:#000;}
+	.tbl-grid-box,
+	.tbl-grid-box thead th, 
+	.tbl-grid-box tbody td {border:1px solid #000 !important; color:#000; font-size:10pt}
+	.ly-content {height:auto !important;}
+	
+	h4,
+	.btn-wrap, 
+	.tbl-box,
+	.pagination-wrap,
+	.ly-header > ly-header-left,
+	.ly-header > ly-header-right,
+	.ly-footer {display:none;}	
+}

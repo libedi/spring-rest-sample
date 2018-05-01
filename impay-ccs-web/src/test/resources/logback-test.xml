@@ -1,0 +1,40 @@
+<configuration>
+    <property resource="application-${spring.profiles.active}.properties" />
+	
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    
+    
+    
+    <appender name="SAP_FILE_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${sps.log.home}/IF_ERP_${sps.host.name}_${sps.instance.name}_%d{yyyy-MM-dd}.log</fileNamePattern>
+ 
+            <!-- maxHIstory 설정은 위 부분에 롤링 정책에 따라 적용되 된다고 보면된다.
+             위 설정데로 라면 30일이 지난 파일은 삭제가 된다.-->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+ 
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="SAP_LOGGER" level="DEBUG">
+    	<appender-ref ref="SAP_FILE_APPENDER" />
+    </logger>
+    
+    
+    
+    
+    <logger name="com.skplanet.impay" level="DEBUG"></logger>
+    <logger name="org.springframework" level="INFO"></logger>
+    <root level="debug">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

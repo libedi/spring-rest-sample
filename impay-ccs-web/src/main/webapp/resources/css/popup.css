@@ -1,0 +1,37 @@
+@charset "utf-8";
+
+html, body  {background:none;}
+.pop-wrap {}
+.pop-header {height:31px; padding-top:14px; background: url('../images/bg_popup.png') repeat-y 50% 0; }
+.pop-header h1 {margin:0 20px; font:16px 'Nanum Gothic'; font-weight:700; color:#fff;}
+.pop-conts {padding:20px;}
+.pop-conts .btn-wrap {text-align:center;}
+.pop-conts .btn-wrap .l-btn {height:27px; color:#666; background: url('../images/bg_popup_btn.png') repeat-x 0 0; border:1px solid #b5b5b5;}
+.pop-conts .btn-wrap .l-btn:hover {height:27px; color:#e11400; background: url('../images/bg_popup_btn.png') repeat-x 0 0; border:1px solid #b5b5b5;}
+.pop-conts .search-box {position:relative;}
+.pop-conts .search-box .searchbtn {position:absolute; right:10px; top:5px;}
+.scrio {margin-top:20px;}
+.scrio h2 {padding:8px 7px; height:21px; line-height:18px; border-top:2px solid #9c9c9c; border-bottom:1px solid #c7c7c7; background: #f8f8f8 url('../images/bg_thead.png') repeat-x 0 100%; font-size:12px; font-weight:700; text-align:center;}
+.scrio .tab-conts {max-height:350px; overflow:auto;}
+.scrio-list > li {font-family:'Nanum Gothic'; border-bottom:1px solid #e7e7e7;}
+.scrio-list > li > a {display:block; padding:10px 20px; background: url('../images/bg_arrow2.png') no-repeat 100% -17px; color:#333;}
+.scrio-list > li > a > span {display:block; margin-right:36px; background:#fff;}
+.scrio-list > li > div {display:none; padding:20px 20px 20px 65px; background:#f0f0f0 url('../images/bg_arrow.png') no-repeat 0 0; border-top:1px solid #e7e7e7; line-height:180%; color:#333;}
+.scrio-list > li > a:hover,
+.scrio-list > li > a:active,
+.scrio-list > li > a.on-selected {color:#333; text-decoration:none;} 
+.scrio-list > li > a.on-selected {font-weight:700; background: url('../images/bg_arrow2.png') no-repeat 100% 14px;}
+.scrio-list em {color:#fd7e03 !important; font-weight:700;}
+
+.payment-wrap {width:502px; height:776px;}
+.payment-head {height:42px; padding:8px 0 0 20px;}
+.payment-head .bi {position:relative; display:inline-block; width:200px; height:34px; overflow:hidden;}
+.payment-head .bi img {display:block; position:absolute; left:0; bottom:0; height:32px; width:auto;}
+
+.payment-wrap.red {background: url('../images/payment_red.png') no-repeat 0 0;}
+.payment-wrap.pink {background: url('../images/payment_pink.png') no-repeat 0 0;}
+.payment-wrap.blue {background: url('../images/payment_blue.png') no-repeat 0 0;}
+.payment-wrap.purple {background: url('../images/payment_purple.png') no-repeat 0 0;}
+.payment-wrap.orange {background: url('../images/payment_orange.png') no-repeat 0 0;}
+.payment-wrap.black {background: url('../images/payment_black.png') no-repeat 0 0;}
+.payment-wrap.green {background: url('../images/payment_green.png') no-repeat 0 0;}

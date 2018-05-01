@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+	발송 요청 Mapper
+	Sangjun, Park
+-->
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.SendReqMapper">
+
+	<insert id="insertSendReqDtl" parameterType="com.skplanet.impay.ccs.common.model.SendReqModel">
+		<selectKey resultType="string" keyProperty="sndReqSeq" order="BEFORE">
+			SELECT PKG_SEQ.FN_GET_SEQ('TN_SND_REQ_DTL') FROM DUAL
+		</selectKey>
+		INSERT	/* impay-ccs-web, common/SendReqMapper.xml, insertSendReqDtl, 발송 요청, 2015-12-18 */
+		INTO TN_SND_REQ_DTL (
+			  SND_REQ_SEQ
+			, NOTI_TYP_ID
+			, ENTP_ID
+			, SND_CTNT
+			<if test='sndResvYn != null and !sndResvYn.equals("")'>
+			, SND_RESV_YN
+			</if>
+			<if test='sndResvDt != null and !sndResvDt.equals("")'>
+			, SND_RESV_DT
+			</if>
+			, REG_DT
+			, REGR
+			, LAST_CHG_DT
+			, LAST_CHGR
+			, SND_TITL
+			<if test='idvdSndYn != null and !idvdSndYn.equals("")'>
+			, IDVD_SND_YN
+			</if>
+			<if test='sndYn != null and !sndYn.equals("")'>
+			, SND_YN
+				<if test='sndYn.equals("Y")'>
+				, SND_DT
+				</if>
+			</if>
+			, IDVD_MPHN_NO
+			, IDVD_EMAIL
+			, SMS_SND_WORD
+			<if test='attchFileSeq != null and !attchFileSeq.equals("")'>
+			, ATTCH_FILE_SEQ
+			</if>
+			, SND_CHNL_FLG
+		)
+		VALUES (
+			  #{sndReqSeq}
+			, #{notiTypId}
+			, #{entpId, jdbcType=VARCHAR}
+			, #{sndCtnt, jdbcType=CLOB}
+			<if test='sndResvYn != null and !sndResvYn.equals("")'>
+			, #{sndResvYn}
+			</if>
+			<if test='sndResvDt != null and !sndResvDt.equals("")'>
+			, TO_DATE(#{sndResvDt, jdbcType=DATE}, 'YYYYMMDD')
+			</if>
+			, SYSDATE
+			, #{regr}
+			, SYSDATE
+			, #{regr}
+			, #{sndTitl, jdbcType=VARCHAR}
+			<if test='idvdSndYn != null and !idvdSndYn.equals("")'>
+			, #{idvdSndYn}
+			</if>
+			<if test='sndYn != null and !sndYn.equals("")'>
+			, #{sndYn}
+				<if test='sndYn.equals("Y")'>
+				, SYSDATE
+				</if>
+			</if>
+			, #{idvdMphnNo, jdbcType=VARCHAR}
+			, #{idvdEmail, jdbcType=VARCHAR}
+			, #{smsSndWord, jdbcType=VARCHAR}
+			<if test='attchFileSeq != null'>
+			, #{attchFileSeq, jdbcType=NUMERIC}
+			</if>
+			, #{sndChnlFlg}
+		)
+	</insert>
+	
+	<update id="updateSendReqDtl" parameterType="com.skplanet.impay.ccs.common.model.SendReqModel">
+		UPDATE	/* impay-ccs-web, common/SendReqMapper.xml, updateSendReqDtl, 발송 요청건 수정, 2015-12-18 */
+				TN_SND_REQ_DTL
+		SET
+			<if test="entpId != null">ENTP_ID = #{entpId} ,</if>
+			<if test="sndCtnt != null">SND_CTNT = #{sndCtnt, jdbcType=CLOB} ,</if>
+			<if test="sndResvYn != null">SND_RESV_YN = #{sndResvYn} ,</if>
+			<if test="sndResvDt != null">SND_RESV_DT = TO_DATE(#{sndResvDt}, 'YYYYMMDD') ,</if>
+			<if test="sndCnclYn != null">SND_CNCL_YN = #{sndCnclYn} ,</if>
+			<if test="sndTitl != null">SND_TITL = #{sndTitl} ,</if>
+			<if test="idvdSndYn != null">IDVD_SND_YN = #{idvdSndYn} ,</if>
+			<if test="idvdMphnNo != null">IDVD_MPHN_NO = #{idvdMphnNo} ,</if>
+			<if test="idvdEmail != null">IDVD_EMAIL = #{idvdEmail} ,</if>
+			<if test="smsSndWord != null">SMS_SND_WORD = #{smsSndWord} ,</if>
+			<if test="attchFileSeq != null">ATTCH_FILE_SEQ = #{attchFileSeq} ,</if>
+			LAST_CHG_DT = SYSDATE,
+			LAST_CHGR = #{lastChgr}
+		WHERE	SND_REQ_SEQ = #{sndReqSeq}
+		AND		NOTI_TYP_ID = #{notiTypId}
+	</update>
+	
+	<select id="selectSendReqDtl" parameterType="string" resultType="com.skplanet.impay.ccs.common.model.SendReqModel">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectSendReqDtl, 발송 요청건 조회, 2016-02-01 */
+				  SND_REQ_SEQ
+				, NOTI_TYP_ID
+				, ENTP_ID
+				, SND_RESV_YN
+				, SND_RESV_DT
+				, SND_YN
+				, SND_DT
+				, SND_CNCL_YN
+				, REG_DT
+				, REGR
+				, LAST_CHG_DT
+				, LAST_CHGR
+				, SND_TITL
+				, IDVD_SND_YN
+				, IDVD_MPHN_NO
+				, IDVD_EMAIL
+				, SMS_SND_WORD
+				, ATTCH_FILE_SEQ
+				, SND_CTNT
+		FROM 	TN_SND_REQ_DTL
+		WHERE 	SND_REQ_SEQ = #{sndReqSeq}
+	</select>
+	
+	<select id="selectSndRsltDtl" parameterType="String" resultType="com.skplanet.impay.ccs.common.model.SendResult">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectSndRsltDtl, 발송 결과 건 조회, 2015-12-18 */
+			  SND_REQ_SEQ
+			, NOTI_TYP_ID
+			, CNTC_SEQ
+			, SND_PROC_YN
+			, LAST_CHG_DT
+			, LAST_CHGR
+		FROM TH_SND_RSLT_DTL
+		WHERE SND_REQ_SEQ = #{sndReqSeq, jdbcType=VARCHAR}
+	</select>
+	
+	<select id="selectSndRsltDtlList" parameterType="com.skplanet.impay.ccs.common.model.SendResult" resultType="com.skplanet.impay.ccs.common.model.SendResult">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectSndRsltDtlList, 발송 결과 리스트 조회, 2015-12-18 */
+			  SND_REQ_SEQ
+			, NOTI_TYP_ID
+			, CNTC_SEQ
+			, SND_PROC_YN
+			, LAST_CHG_DT
+			, LAST_CHGR
+		FROM TH_SND_RSLT_DTL
+		<trim prefix="WHERE" prefixOverrides="AND">
+			<if test='sndReqSeq != null and !sndReqSeq.equals("")'>
+			AND SND_REQ_SEQ = #{sndReqSeq}
+			</if>
+			<if test='sndReqSeq != null and !sndReqSeq.equals("")'>
+			AND NOTI_TYP_ID = #{notiTypId}
+			</if>
+			<if test='sndReqSeq != null and !sndReqSeq.equals("")'>
+			AND CNTC_SEQ = #{cntcSeq}
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectNotiTyp" parameterType="String" resultType="com.skplanet.impay.ccs.common.model.NotiTypeModel">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectNotiTyp, 통보 유형 조회, 2015-12-18 */
+			  NOTI_TYP_ID
+			, NOTI_TYP_NM
+			, NOTI_TYP_CD
+			, NOTI_TRGT_FLG
+			, SND_CHNL_FLG
+			, USE_YN
+			, LAST_CHG_DT
+			, LAST_CHGR
+		FROM	TC_NOTI_TYP
+		WHERE	USE_YN = 'Y'
+		AND NOTI_TYP_ID = #{notiTypId, jdbcType=VARCHAR}
+	</select>
+	
+	<select id="selectNotiTypList" parameterType="com.skplanet.impay.ccs.common.model.NotiTypeModel" resultType="com.skplanet.impay.ccs.common.model.NotiTypeModel">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectNotiTypList, 통보 유형 조회, 2015-12-18 */
+			  NOTI_TYP_ID
+			, NOTI_TYP_NM
+			, NOTI_TYP_CD
+			, NOTI_TRGT_FLG
+			, SND_CHNL_FLG
+			, USE_YN
+			, LAST_CHG_DT
+			, LAST_CHGR
+		FROM	TC_NOTI_TYP
+		WHERE	USE_YN = 'Y'
+		<if test='notiTypId != null and !notiTypId.equals("")'>
+			AND NOTI_TYP_ID = #{notiTypId}
+		</if>
+		<if test='notiTypCd != null and !notiTypCd.equals("")'>
+			AND NOTI_TYP_CD = #{notiTypCd}
+		</if>
+	</select>
+	
+	
+	<!-- 수신그룹 연락처를 포함한 통보 유형 ResultMap -->
+	<resultMap id="notiTypeResult" type="com.skplanet.impay.ccs.common.model.NotiTypeModel">
+		<id property="notiTypId" column="NOTI_TYP_ID"/>
+		<result property="notiTypNm" column="NOTI_TYP_NM"/>
+		<result property="notiTypCd" column="NOTI_TYP_CD"/>
+		<result property="notiTrgtFlg" column="NOTI_TRGT_FLG"/>
+		<result property="sndChnlFlg" column="SND_CHNL_FLG"/>
+		<result property="useYn" column="USE_YN"/>
+		<result property="lastChgDt" column="LAST_CHG_DT"/>
+		<result property="lastChgr" column="LAST_CHGR"/>
+		<collection property="cntcInfoList" ofType="com.skplanet.impay.ccs.common.model.CntcInfo">
+			<id property="cntcSeq" column="CNTC_SEQ"/>
+			<result property="entpId" column="ENTP_ID"/>  
+			<result property="chrgrNm" column="CHRGR_NM"/>
+			<result property="mphnNo" column="MPHN_NO"/>
+			<result property="email" column="EMAIL"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectNotiTypWithCntcInfo" parameterType="String" resultMap="notiTypeResult">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectNotiTypWithCntcInfo, 수신그룹 연락처를 포함한 통보 유형 조회, 2015-12-18 */
+			  TNT.NOTI_TYP_ID
+			, TNT.NOTI_TYP_NM
+			, TNT.NOTI_TYP_CD
+			, TNT.NOTI_TRGT_FLG
+			, TNT.SND_CHNL_FLG
+			, TNT.USE_YN
+			, TNT.LAST_CHG_DT
+			, TNT.LAST_CHGR
+			, TCI.CNTC_SEQ
+			, TCI.ENTP_ID
+			, TCI.CHRGR_NM
+			, TCI.MPHN_NO
+			, TCI.EMAIL
+		FROM TC_NOTI_TYP          TNT
+		LEFT JOIN TN_NOTI_RCV_GRP TNRG ON TNT.NOTI_TYP_ID = TNRG.NOTI_TYP_ID
+		LEFT JOIN TN_CNTC_INFO    TCI  ON TNRG.CNTC_SEQ = TCI.CNTC_SEQ
+		WHERE TNT.NOTI_TYP_ID = #{notiTypId}
+	</select>
+	
+	<!-- SMS인증번호 테이블 SEQ채번 -->
+	<select id="createAuthTiSeq" resultType="String">
+		SELECT PKG_SEQ.FN_GET_SEQ('TN_SMS_APRV') FROM DUAL
+	</select>
+	
+	<!-- SMS인증 발송 요청 -->
+	<insert id="insertSmsAuthReq" parameterType="com.skplanet.impay.ccs.common.model.SmsAprv">
+		INSERT	/* impay-ccs-web, common/SendReqMapper.xml, insertSmsAuthReq, SMS인증 발송 요청, 2016-4-25 */
+		INTO TN_SMS_APRV (
+			AUTHTI_SEQ,
+			AUTHTI_NO,
+			REG_DT,
+			REGR )
+		VALUES (
+			#{authtiSeq},
+			#{authtiNo},
+			SYSDATE,
+			#{regr}
+			)
+	</insert>
+	
+	<!-- SMS인증 발송 요청 조회 -->
+	<select id="selectSmsAuthReq" parameterType="com.skplanet.impay.ccs.common.model.SmsAprv" resultType="com.skplanet.impay.ccs.common.model.SmsAprv">
+		SELECT	/* impay-ccs-web, common/SendReqMapper.xml, selectSmsAuthReq, SMS인증 발송 요청 조회, 2016-4-25 */
+			AUTHTI_SEQ,
+			AUTHTI_NO,
+			REG_DT,
+			REGR
+		FROM TN_SMS_APRV
+		WHERE AUTHTI_SEQ = #{authtiSeq}
+	</select>
+</mapper>

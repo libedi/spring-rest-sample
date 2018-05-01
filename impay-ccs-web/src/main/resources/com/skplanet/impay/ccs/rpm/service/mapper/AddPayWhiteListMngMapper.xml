@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.skplanet.impay.ccs.rpm.service.mapper.AddPayWhiteListMngMapper">
+	
+	<select id="selectAddPayWhiteCount" parameterType="com.skplanet.impay.ccs.rpm.model.RpmSearch" resultType="int">
+		SELECT	/* impay-ccs-web, rpm/AddPayWhiteListMngMapper.xml, selectNpayAddWhiteCount, 미납가산금 W/L 목록 카운트, 2016-01-11 */
+				COUNT(*)
+		FROM	TN_CNSL_NPAY_ADD_WL CNAW
+				JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAW.PAY_MPHN_ID
+		WHERE	1=1
+				<if test='stDate != null and !stDate.equals("") and endDate != null and !endDate.equals("")'> /* 등록일자 */		
+					AND CNAW.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate}, 'YYYY.MM.DD')+1 
+				</if>
+				<if test='searchClf != null and !searchClf.equals("")'>	/* 등록구분 */
+					AND CNAW.REG_CLF_CD = #{searchClf} 
+				</if>
+				<if test='searchName != null and !searchName.equals("")'>	/* 이름 */
+					AND CNAW.PAYR_NM = #{searchName} 
+				</if>
+				<if test='searchPhone != null and !searchPhone.equals("")'>	/* 등록구분 */
+					AND PMI.MPHN_NO LIKE '%' || UPPER(#{searchPhone}) || '%'
+				</if>
+				
+	</select>
+	
+	<select id="selectAddPayWhiteList" parameterType="com.skplanet.impay.ccs.rpm.model.RpmSearch" resultType="com.skplanet.impay.ccs.rpm.model.AddPayWhiteList">
+		SELECT  /* impay-ccs-web, rpm/AddPayWhiteListMngMapper.xml, selectAddPayWhiteList, 미납가산금 W/L 목록 조회, 2016-01-11 */
+				PAGE_TABLE.*
+		FROM (  
+				SELECT ROWNUM AS RNUM, A.*
+				FROM (
+						SELECT	
+						        CNAW.WL_REG_NO,	/* WL 등록번호 */
+						        CNAW.PAY_MPHN_ID,
+						        CNAW.REG_CLF_CD,
+						        CNAW.REG_RSN,
+						        CNAW.PAYR_NM,
+						        CNAW.DEL_YN,
+						        CNAW.DEL_RSN,
+						        TO_CHAR(CNAW.DEL_DT,'YYYY.MM.DD')AS DEL_DT,
+						        CNAW.DEL_PROC,
+						        TO_CHAR(CNAW.REG_DT,'YYYY.MM.DD')AS REG_DT,
+						        CNAW.REGR,
+						        CNAW.LAST_CHG_DT,
+						        CNAW.LAST_CHGR,
+						        PMI.MPHN_NO
+						FROM	TN_CNSL_NPAY_ADD_WL CNAW
+								JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAW.PAY_MPHN_ID
+						WHERE	1=1
+								<if test='stDate != null and !stDate.equals("") and endDate != null and !endDate.equals("")'> /* 등록일자 */		
+									AND CNAW.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate}, 'YYYY.MM.DD')+1 
+								</if>
+								<if test='searchClf != null and !searchClf.equals("")'>	/* 등록구분 */
+									AND CNAW.REG_CLF_CD = #{searchClf} 
+								</if>
+								<if test='searchName != null and !searchName.equals("")'>	/* 이름 */
+									AND CNAW.PAYR_NM = #{searchName} 
+								</if>
+								<if test='searchPhone != null and !searchPhone.equals("")'>	/* 핸드폰 */
+									AND PMI.MPHN_NO LIKE '%' || UPPER(#{searchPhone}) || '%' 
+								</if>
+								ORDER BY WL_REG_NO DESC	
+					)A
+				)PAGE_TABLE
+		WHERE RNUM BETWEEN #{pageParam.startRow} AND #{pageParam.endRow}
+	</select>
+
+	<select id="selectAddPayWhiteListInfo" parameterType="String" resultType="com.skplanet.impay.ccs.rpm.model.AddPayWhiteList">
+		SELECT /* impay-ccs-web, rpm/AddPayWhiteListMngMapper.xml, selectAddPayWhiteListInfo, 미납가산금 W/L 상세 정보, 2016-01-12 */
+				CNAW.WL_REG_NO,
+				CNAW.PAYR_NM,	
+				CNAW.PAY_MPHN_ID,
+				CNAW.REG_CLF_CD,
+				CNAW.REG_RSN,
+				CNAW.DEL_YN,
+				CNAW.DEL_RSN,
+				TO_CHAR(CNAW.DEL_DT,'YYYY.MM.DD')AS DEL_DT,
+				CNAW.DEL_PROC,
+				TO_CHAR(CNAW.REG_DT,'YYYY.MM.DD')AS REG_DT,
+				CNAW.REGR,
+				CNAW.LAST_CHG_DT,
+				CNAW.LAST_CHGR,
+				PMI.MPHN_NO
+		FROM	TN_CNSL_NPAY_ADD_WL CNAW
+				JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAW.PAY_MPHN_ID
+		WHERE	WL_REG_NO = #{wlRegNo}	
+	
+	</select>
+
+	<insert id="insertAddPayWhiteList" parameterType="com.skplanet.impay.ccs.rpm.model.AddPayWhiteList">
+    	<selectKey resultType="String" keyProperty="wlRegNo" order="BEFORE">
+			SELECT PKG_SEQ.FN_GET_SEQ('TN_CNSL_NPAY_ADD_WL') FROM DUAL
+		</selectKey>	
+		INSERT	/* impay-ccs-web, rpm/AddPayWhiteListMngMapper.xml, insertAddPayWhiteList, 미납가산금 W/L 등록, 2016-01-11 */ 
+		INTO 	TN_CNSL_NPAY_ADD_WL 
+				(
+				 WL_REG_NO,		/* WL 등록번호 */
+				 PAYR_NM,		/* 이름 */
+				 PAY_MPHN_ID,	/* 결제폰 ID */
+				 REG_CLF_CD,	/* 등록 구분 코드 */
+				 REG_RSN,		/* 등록 사유 */
+				 DEL_YN,		/* 삭제 여부 */
+				 REG_DT,		/* 등록 일시 */
+				 REGR,			/* 등록자 */
+				 LAST_CHG_DT,	/* 최종 변경 일시 */
+				 LAST_CHGR		/* 최종 변경자 */
+				)
+		VALUES	(
+				 #{wlRegNo},
+				 #{payrNm},
+				 #{payMphnId},
+				 #{regClfCd},
+				 #{regRsn},
+				 'N',
+				 SYSDATE,
+				 #{regr},
+				 SYSDATE,
+				 #{lastChgr}
+				)	
+    </insert>
+    
+    <update id="updateAddPayDelWhiteList" parameterType="com.skplanet.impay.ccs.rpm.model.AddPayWhiteList">
+    	UPDATE	/* impay-ccs-web, rpm/AddPayWhiteListMngMapper.xml, updateAddPayDelWhiteList, 미납가산금 W/L 삭세 사유 등록, 2016-01-11 */
+    			TN_CNSL_NPAY_ADD_WL
+    	SET		
+ 				DEL_RSN = #{delRsn},
+ 				DEL_YN = 'Y',
+ 				DEL_DT = SYSDATE,
+ 				DEL_PROC = #{delProc}
+ 		WHERE	WL_REG_NO = #{wlRegNo}  
+    </update>
+    
+    <select id="selectAddPayCheckData" parameterType="com.skplanet.impay.ccs.rpm.model.AddPayWhiteList" resultType="int">
+    		SELECT COUNT(*) 
+			FROM TN_CNSL_NPAY_ADD_WL 
+			WHERE 
+			<![CDATA[
+				DEL_YN <> 'Y'
+			]]>
+				AND PAY_MPHN_ID = #{payMphnId} 
+    </select>
+</mapper>

@@ -1,0 +1,62 @@
+@charset "utf-8";
+
+/* layout */
+html, body  {height:100%; background:url('../images/bg_lnb.png') repeat-y 0 0;}
+.wrap {height:100%;}
+.header {position:relative; width:100%; height:143px; min-width:1305px; background: #fff url('../images/bg_gnb.png') repeat-x 0 100%;}
+.header:after {display:block; clear:both; content:"";}
+.header h1 {position:absolute; top:47px; left:29px; height:100px;}
+.header .header-wrap {display:inline-block; position:relative; overflow:visible; width:1110px; height:100px; margin-left:195px;}
+.header .header-wrap .top-info {position:absolute; top:10px; left:30px; color:#999;}
+.header .header-wrap .top-info > span {padding-right:10px;}
+.header .header-wrap .top-info .l-btn {width:60px; height:20px; padding:1px 2px 0 !important; margin-left:0; font-size:11px !important;}
+.header .header-wrap .top-info strong {font-weight:normal;}
+.header .header-wrap .impay-menu {position:absolute; top:10px; right:0;}
+.header .header-wrap .impay-menu li {float:left;}
+.header .header-wrap .impay-menu li a {display:inline-block; height:18px; width:55px; border:1px #dcdcdc solid; margin-left:-1px; color:#333; font:11px; color:#999; text-align:center; line-height:17px; background:#f2f2f2; text-decoration:none;}
+.header .header-wrap .impay-menu li a:active,
+.header .header-wrap .impay-menu li a.on {background:#e11400; color:#fff; text-decoration:none; border:1px #e11400 solid;}
+
+.header .header-wrap .gnb {position:absolute; top:45px; left:25px; width:1080px;}
+.header .header-wrap .gnb-wrap {position:relative;}
+.header .header-wrap .gnb-wrap > li {display:inline-block; float:left; margin-left:60px;}
+.header .header-wrap .gnb-wrap > li:first-child {margin-left:0;}
+.header .header-wrap .gnb-wrap a {color:#333; font-family:'Nanum Gothic'; font-weight:700; text-decoration:none;}
+.header .header-wrap .gnb-wrap a:hover,
+.header .header-wrap .gnb-wrap a:active,
+.header .header-wrap .gnb-wrap .submenu-wrap > ul > li > a.on {color:#e11400;}
+.header .header-wrap .gnb-wrap > li > a {display:block; height:50px; padding:5px 5px 0; font-size:16px;}
+.header .header-wrap .gnb-wrap .submenu-wrap {display:none; position:absolute; top:58px; left:42px; min-width:1080px; padding:5px 0;}
+.header .header-wrap .gnb-wrap .submenu-wrap > ul {display:inline-block;}
+.header .header-wrap .gnb-wrap .submenu-wrap > ul > li {float:left; margin:0 12px;}
+.header .header-wrap .gnb-wrap .submenu-wrap > ul > li > a {display:inline-block; font-size:14px; padding:5px 5px;}
+.header .header-wrap .gnb-wrap > li > a:hover,
+.header .header-wrap .gnb-wrap > li > a:active,
+.header .header-wrap .gnb-wrap > li > a.on {border-bottom:3px solid #f46700; color:#e11400;}
+.header .header-wrap #sub-menu01 {margin-left:-50px;}
+.header .header-wrap #sub-menu02 > ul {margin-left:130px;}
+.header .header-wrap #sub-menu03 > ul {margin-left:265px;}
+.header .header-wrap #sub-menu04 > ul {margin-left:475px;}
+.header .header-wrap #sub-menu05 > ul {margin-left:480px;}
+.header .header-wrap #sub-menu06 {text-align:right;}
+
+.container {position:relative; width:1310px; z-index:10;}
+.lnb, .contents {float:left;}
+.container:after {display:block; clear:both; content:"";}
+.contents {width:1080px; padding:65px 0 30px 30px; background: #fff}
+body > .contents {min-height:100%;} /* 추후 삭제할것 */
+
+.lnb {/*position:absolute; left:0; top:103px; position:fixed; top:103px;*/ width:194px; height:100%; margin-top:-40px; background:#fbfbfb; border-right:1px solid #e6e6e6;}
+.lnb .lnb-wrap {position:relative; width:194px;}
+.lnb .lnb-wrap h2 {height:41px; padding:13px 0 0 18px; margin-right:-1px; background:#e11400; color:#fff; font-family:'Nanum Gothic'; font-weight:700;}
+.lnb .lnb-menu a {display:block; color:#333; font-family:'Nanum Gothic'; font-weight:700;}
+.lnb .lnb-menu > li {border-bottom:1px solid #e6e6e6;}
+.lnb .lnb-menu > li > a {padding:10px 30px 10px 20px; font-size:13.3px;}
+.lnb .lnb-menu li ul {padding:8px 0; border-top:1px solid #e6e6e6; display:none; background:#ededed;}
+.lnb .lnb-menu li ul li {}
+.lnb .lnb-menu li ul li a {padding:5px 20px 5px 30px; background: url('../images/bul_hyphen.png') no-repeat 20px 10px; font-size:12px;}
+.lnb .lnb-menu a:hover,
+.lnb .lnb-menu a:active,
+.lnb .lnb-menu a.on {color:#e11400; text-decoration:none;}
+.lnb .lnb-menu > .depth > a {background: url('../images/ico_depth.png') no-repeat 100% 14px;}
+.lnb .lnb-menu > .depth > a.on {background: url('../images/ico_depth.png') no-repeat 100% -40px;}

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.CommonMapper">
+
+	<!-- 이통사 원가 - 조회 -->
+	<select id="selectCommcCost" resultType="com.skplanet.impay.ccs.common.model.CommcCost">
+		<![CDATA[
+		SELECT  /* common.service.mapper.CommonMapper.selectCommcCost */
+				COMMC_COST_ID,		/* 이통사 원가 ID */
+				COMMC_CLF,			/* 이통사 구분 */
+				COST_CLF_CD,		/* 원가 구분 코드 */
+				COST_CD_NM,			/* 원가 코드 명 */
+				COMMC_FEE,			/* 이통사 수수료율 */
+				FEE_VAT_YN,			/* 수수료 부가세 여부 */
+				SMS_UPRC,			/* SMS단가 */
+				USE_YN,				/* 사용여부 */
+				RMK,				/* 비고 */
+        		REG_DT,				/* 등록일자 */
+        		REGR,				/* 등록자 */
+        		LAST_CHG_DT,		/* 최종 변경 일시 */
+        		LAST_CHGR			/* 최종 변경자 */
+		FROM  	TC_COMMC_COST
+		]]>
+	</select>
+	
+	<!-- 데이터 변경이력 - 조회 -->
+	<select id="selectDataChg" resultType="com.skplanet.impay.ccs.common.model.DataChg">
+		<![CDATA[
+		SELECT  /* common.service.mapper.CommonMapper.selectDataChg */
+				CHG_DD,				/* 변경일자 */
+				CHG_HIS_SEQ,		/* 변경이력 순번 */
+				TBL_NM,				/* 테이블명 */
+				CHG_CLF,			/* 변경구분 */
+				CHG_KEY_1,			/* 변경KEY1 */
+				CHG_KEY_2,			/* 변경KEY2 */
+				CHG_KEY_3,			/* 변경KEY3 */
+				CHG_KEY_4,			/* 변경KEY4 */
+				CHG_KEY_5,			/* 변경KEY5 */
+				CHG_DTL,			/* 변경내역 */
+        		REG_DT,				/* 등록일자 */
+        		REG_PRGM			/* 등록자 */
+		FROM  	TH_DATA_CHG
+		WHERE 	CHG_DD  = #{chgDd}
+		AND		CHG_HIS_SEQ = #{chgHisSeq}
+		]]>
+	</select>
+	
+	<!-- 데이터 변경이력 - 조회 -->
+	<select id="selectDataChgListByTblNm" resultType="com.skplanet.impay.ccs.common.model.DataChg">
+		<![CDATA[
+		SELECT  /* common.service.mapper.CommonMapper.selectDataChgListByTblNm */
+				CHG_DD,				/* 변경일자 */
+				CHG_HIS_SEQ,		/* 변경이력 순번 */
+				TBL_NM,				/* 테이블명 */
+				CHG_CLF,			/* 변경구분 */
+				CHG_KEY_1,			/* 변경KEY1 */
+				CHG_KEY_2,			/* 변경KEY2 */
+				CHG_KEY_3,			/* 변경KEY3 */
+				CHG_KEY_4,			/* 변경KEY4 */
+				CHG_KEY_5,			/* 변경KEY5 */
+				CHG_DTL,			/* 변경내역 */
+        		REG_DT,				/* 등록일자 */
+        		REG_PRGM			/* 등록자 */
+		FROM  	TH_DATA_CHG
+		WHERE TBL_NM  = #{tblNm}
+		]]>
+	</select>
+	
+	<!-- 
+ 		 데이터 변경이력(페이징) - 목록카운트
+ 	-->
+	<select id="selectDataChgPageListCount" parameterType="com.skplanet.impay.ccs.common.model.CommonSearch" resultType="int">
+		SELECT  /* common.service.mapper.CommonMapper.selectDataChgPageListCount */
+				COUNT(*)
+		FROM  	TH_DATA_CHG
+		WHERE TBL_NM  IN	
+		<foreach collection="searchList" item="item" index="index" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+	</select>
+	
+	<!-- 데이터 변경이력(페이징)- 조회 -->
+	<select id="selectDataChgPageList"  parameterType="com.skplanet.impay.ccs.common.model.CommonSearch" resultType="com.skplanet.impay.ccs.common.model.DataChg">
+		SELECT PAGE_TABLE.*
+		FROM 
+			(
+	        SELECT	ROWNUM AS IDX , RAW_DATA.* 
+	        FROM 
+	            ( 
+					SELECT  /* common.service.mapper.CommonMapper.selectDataChgPageList */
+							CHG_DD,				/* 변경일자 */
+							CHG_HIS_SEQ,		/* 변경이력 순번 */
+							TBL_NM,				/* 테이블명 */
+							CHG_CLF,			/* 변경구분 */
+							CHG_KEY_1,			/* 변경KEY1 */
+							CHG_KEY_2,			/* 변경KEY2 */
+							CHG_KEY_3,			/* 변경KEY3 */
+							CHG_KEY_4,			/* 변경KEY4 */
+							CHG_KEY_5,			/* 변경KEY5 */
+							CHG_DTL,			/* 변경내역 */
+			        		REG_DT,				/* 등록일자 */
+			        		REG_PRGM,			/* 등록프로그램 */
+			        		CHGR				/* 등록자 */
+					FROM  	TH_DATA_CHG
+					WHERE TBL_NM  IN
+					
+			        <foreach collection="searchList" item="item" index="index" separator="," open="(" close=")">
+			            #{item}
+			        </foreach>
+			        
+		 		) RAW_DATA
+	        ) PAGE_TABLE
+		WHERE IDX BETWEEN #{pageParam.startRow} AND #{pageParam.endRow}
+	</select>
+	
+	<!-- 법인정보 조회 -->
+	<select id="selectEntpInfo" parameterType="string" resultType="com.skplanet.impay.ccs.common.model.EntpModel">
+		SELECT
+				  ENTP_ID
+				, ENTP_NM
+				, UPR_ENTP_ID
+				, SCL_CLF_CD
+				, PRSDT_NM
+				, REP_SITE_NM
+				, REP_URL
+				, REP_TEL_NO
+				, FAX_NO
+				, BIZR_REG_NO
+				, ZIP_CD
+				, ADDR
+				, ADDR_DTL
+				, BIZ_CNDI
+				, ITM
+				, SLS_CHRGR
+				, FRST_CNTRC_DD
+				, ADJ_LMT_AMT
+				, TRD_YN
+				, TRD_FNSH_DD
+				, PG_CLF_FLG
+				, REG_DT
+				, REGR
+				, LAST_CHG_DT
+				, LAST_CHGR
+				, BIZ_CTGR_UPR_CD
+				, BIZ_CTGR_LWR_CD
+				, AGNT_DFLT_FEE
+		FROM	TB_ENTP_INFO
+		WHERE	ENTP_ID = #{entpId}
+	</select>
+	
+	
+	<select id="selectAdjEntp" resultType="com.skplanet.impay.ccs.common.model.EntpModel">
+		<![CDATA[
+		SELECT 	
+				ENTP_ID,
+				ENTP_NM 
+		FROM 	TB_ENTP_INFO 
+ 		WHERE 	PG_CLF_FLG IS NOT NULL AND PG_CLF_FLG <>' ' OR RESLSR_CLF_FLG IS NOT NULL 
+		ORDER BY ENTP_NM
+		]]>
+	</select>
+</mapper>

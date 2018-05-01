@@ -1,0 +1,1371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 상담 관리 Mapper --> 
+<mapper namespace="com.skplanet.impay.ccs.csm.service.mapper.CnslMngMapper">
+
+	<!-- 거래완료 공통 조회조건 쿼리 -->
+	<sql id="commonSearchConditionSql">
+		<!-- 조회기간 -->
+		<if test='selectDate != null and !selectDate.equals("")'>
+			<!-- 월별 -->
+			<if test='selectDate.equals("M") and strtMon != null'>
+			<![CDATA[
+			AND TPRM.TRD_DD >= TO_CHAR(TO_DATE(#{strtMon}, 'YYYY.MM'), 'YYYYMMDD') AND TPRM.TRD_DD < TO_CHAR(LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1, 'YYYYMMDD') 
+			]]>
+			</if>
+			<!-- 기간별 -->
+			<if test='selectDate.equals("T")'>
+				<if test='strtDt != null and !strtDt.equals("")'>
+				<![CDATA[
+				AND TPRM.TRD_DD >= TO_CHAR(TO_DATE(#{strtDt}, 'YYYY.MM.DD'), 'YYYYMMDD')
+				]]>
+				</if>
+				<if test='endDt != null and !endDt.equals("")'>
+				<![CDATA[
+				AND TPRM.TRD_DD < TO_CHAR(TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1, 'YYYYMMDD') 
+				]]>
+				</if>
+			</if>
+		</if>
+		<!-- 상담자 휴대번호 -->
+		<choose>
+			<when test='payMphnId != null and !payMphnId.equals("")'>
+			AND TPRM.PAY_MPHN_ID = #{payMphnId}
+			</when>
+			<when test='payrSeq != null and !payrSeq.equals("")'>
+			AND TPRM.PAYR_SEQ = #{payrSeq}
+			</when>
+			<when test='custMphnNo != null and !custMphnNo.equals("")'>
+			AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{custMphnNo})
+			</when>
+		</choose>
+		<!-- 고객번호 -->
+		<if test='payMphnIdList != null and payMphnIdList.size() != 0'>
+		 AND TPRM.PAY_MPHN_ID IN
+			<foreach collection="payMphnIdList" item="payMphnId" open="(" separator="," close=")">
+				#{payMphnId}
+			</foreach>
+		</if>
+		<!-- 가맹점 코드 -->
+		<if test='cpCd != null and !cpCd.equals("")'>
+		AND TPRM.CP_CD = #{cpCd}
+		</if>
+		<!-- 거래번호 리스트 -->
+		<if test="trdNos != null and trdNos.length != 0">
+		AND TPRM.TRD_NO IN
+		<foreach collection="trdNos" item="trdNo" open="(" separator="," close=")">
+			#{trdNo}
+		</foreach>
+		</if>
+	</sql>
+	
+	<!-- 전체 상담이력 공통 조회조건 쿼리 -->
+	<sql id="commonCnslDetailSql">
+		<!-- 상담자 휴대번호 -->
+		<choose>
+			<when test='payMphnId != null and !payMphnId.equals("")'>
+			AND TPMI.PAY_MPHN_ID = #{payMphnId}
+			</when>
+			<when test='payrSeq != null and !payrSeq.equals("")'>
+			AND TPMI.PAYR_SEQ = #{payrSeq}
+			</when>
+			<when test='custMphnNo != null and !custMphnNo.equals("")'>
+			AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{custMphnNo})
+			</when>
+		</choose>
+		<!-- 고객번호 -->
+		<if test='payMphnIdList != null and payMphnIdList.size() != 0'>
+		AND TCD.PAY_MPHN_ID IN
+		<foreach collection="payMphnIdList" item="payMphnId" open="(" separator="," close=")">
+			#{payMphnId}
+		</foreach>
+		</if>
+		<!-- 가맹점 코드 -->
+		<if test='cpCd != null and !cpCd.equals("")'>
+		AND TCD.CP_CD = #{cpCd}
+		</if>
+		<!-- 접수번호 -->
+		<if test='rcptNo != null and !rcptNo.equals("")'>
+		AND TCD.RCPT_NO = #{rcptNo}
+		</if>
+	</sql>
+	
+	<select id="selectTradeCompleteListByPaging" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.TradeModel">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeCompleteListByPaging, 거래완료건 리스트 조회(페이징처리), 2015-12-24 */
+				PT.*
+		FROM (
+				SELECT
+					ROWNUM AS RNUM, A.*
+				FROM (
+						SELECT	
+								TPRM.TRD_TYP_CD												/* 결제조건 */
+						      , TO_CHAR(TPRM.TRD_DT, 'YY.MM.DD HH24:MI:SS') AS TRD_DT		/* 거래일시 */
+						      , TPRM.TRD_DD													/* 거래일시 */
+						      , TO_CHAR(TPRM.CNCL_DT, 'YY.MM.DD HH24:MI:SS') AS CNCL_DT		/* 취소일시 */
+						      , TPRM.CNCL_DD												/* 취소일시 */
+						      , CASE
+						      		WHEN TPRM.CNCL_YN = 'N' AND SYSDATE <![CDATA[<]]> LAST_DAY(TPRM.TRD_DT) + 1 THEN 'Y'
+						      		WHEN TPRM.CNCL_YN = 'N' AND SYSDATE <![CDATA[>=]]> LAST_DAY(TPRM.TRD_DT) + 1 THEN 'N'
+						      		WHEN TPRM.CNCL_YN = 'Y' THEN 'N'
+						      	END AS AVL_CNCL												/* 취소가능여부 */
+						      <![CDATA[
+						      , CASE
+									WHEN TPMI.BRTH_YY IS NOT NULL THEN TO_CHAR(TO_DATE(TPMI.BRTH_YY || SUBSTR(TPMI.BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+									WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) > 16 THEN TO_CHAR(TO_DATE('19' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+									WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) <= 16 THEN TO_CHAR(TO_DATE('20' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+			                        ELSE NULL
+								END AS BRTH_YMD												/* 생년월일 */
+							  ]]>
+						      , TPRM.COMMC_CLF												/* 이통사 */
+						      , TPRM.PAYR_SEQ												/* 고객번호 */
+						      , TPMI.MPHN_NO												/* 휴대폰번호 */
+						      , TPR.PAY_AMT													/* 거래금액 */
+						      , (TPR.PAY_AMT - TPR.AC_PAY_AMT) AS SALE_AMT					/* 할인금액 */
+						      , TPR.AC_PAY_AMT												/* 청구금액 */
+						      , TCPS.PAY_SVC_NM												/* 가맹점명 */
+						      , TPRM.GODS_NM												/* 상품명 */
+						      , TPR.SMPL_PAY_YN												/* 고객상태 : 간소화 결제여부 */
+						      , TPRM.CNCL_YN												/* 취소여부 */
+						      , TPRM.TRD_NO													/* 결제승인(구매)번호 */
+						      , TCCC.TEL_NO													/* 고객센터 */
+						      , TCPS.PAY_SITE_NM											/* 결제사이트명 */
+						      , TEI.ENTP_ID													/* 법인ID */
+						      , TPRM.CP_CD													/* 가맹점코드 */
+						      , TPRM.PAY_MPHN_ID											/* 결제폰ID */
+						      , TPR.AUTHTI_CLF_FLG											/* 인증구분 */
+						FROM TP_PAY_RSLT_MST 			TPRM
+							JOIN TB_PAY_MPHN_INFO 		TPMI ON TPRM.PAY_MPHN_ID 	= TPMI.PAY_MPHN_ID AND TPRM.PAYR_SEQ = TPMI.PAYR_SEQ
+							JOIN TB_CP_PAY_SVC     		TCPS ON TPRM.CP_CD 			= TCPS.CP_CD
+							JOIN TP_PAY_REQ 			TPR  ON TPRM.TRD_NO 		= TPR.TRD_NO AND TPRM.TRD_DD = TPR.REQ_DD
+							LEFT JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID 	= TEI.ENTP_ID
+							LEFT JOIN (
+								SELECT
+									ENTP_ID,
+									LISTAGG(TEL_NO, ', ') WITHIN GROUP(ORDER BY TEL_NO) AS TEL_NO
+								FROM TN_CP_CLCT_CNTC
+								WHERE USE_YN = 'Y'
+								GROUP BY ENTP_ID
+							) TCCC ON TEI.ENTP_ID = TCCC.ENTP_ID
+						WHERE	TPRM.PAY_SUCC_YN = 'Y'
+						<include refid="commonSearchConditionSql"/>
+						ORDER BY TPRM.TRD_DT DESC
+				) A
+				<![CDATA[
+				WHERE ROWNUM <= #{pageParam.endRow}
+		) PT
+		WHERE PT.RNUM >= #{pageParam.startRow} 
+		]]>
+	</select>
+	
+	<select id="selectTradeCompleteListCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeCompleteListCount, 거래완료건 전체카운트 조회, 2015-12-24 */
+				COUNT(*)
+		FROM TP_PAY_RSLT_MST		TPRM 
+			JOIN TB_PAY_MPHN_INFO 	TPMI ON TPRM.PAY_MPHN_ID	= TPMI.PAY_MPHN_ID AND TPRM.PAYR_SEQ = TPMI.PAYR_SEQ
+			JOIN TB_CP_PAY_SVC 		TCPS ON TPRM.CP_CD 			= TCPS.CP_CD
+			JOIN TP_PAY_REQ 		TPR  ON TPRM.TRD_NO 		= TPR.TRD_NO AND TPRM.TRD_DD = TPR.REQ_DD
+		WHERE 	TPRM.PAY_SUCC_YN = 'Y'
+		<include refid="commonSearchConditionSql"/>
+	</select>
+	
+	<select id="selectTradeCompleteList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.TradeModel">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeCompleteList, 거래완료건 리스트 조회, 2015-12-24 */
+			    TPRM.TRD_TYP_CD												/* 결제조건 */
+		      , TO_CHAR(TPRM.TRD_DT, 'YY.MM.DD HH24:MI:SS') AS TRD_DT		/* 거래일시 */
+		      , TPRM.TRD_DD													/* 거래일시 */
+		      , TO_CHAR(TPRM.CNCL_DT, 'YY.MM.DD HH24:MI:SS') AS CNCL_DT		/* 취소일시 */
+		      , TPRM.CNCL_DD												/* 취소일시 */
+		      , CASE
+		      		WHEN TPRM.CNCL_YN = 'N' AND SYSDATE <![CDATA[<]]> LAST_DAY(TPRM.TRD_DT) + 1 THEN 'Y'
+		      		WHEN TPRM.CNCL_YN = 'N' AND SYSDATE <![CDATA[>=]]> LAST_DAY(TPRM.TRD_DT) + 1 THEN 'N'
+		      		WHEN TPRM.CNCL_YN = 'Y' THEN 'N'
+		      	END AS AVL_CNCL												/* 취소가능여부 */
+		      <![CDATA[
+		      , CASE
+					WHEN TPMI.BRTH_YY IS NOT NULL THEN TO_CHAR(TO_DATE(TPMI.BRTH_YY || SUBSTR(TPMI.BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+					WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) > 16 THEN TO_CHAR(TO_DATE('19' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+					WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) <= 16 THEN TO_CHAR(TO_DATE('20' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+					ELSE NULL
+				END AS BRTH_YMD												/* 생년월일 */
+			  ]]>
+		      , TPRM.COMMC_CLF												/* 이통사 */
+		      , TPRM.PAYR_SEQ												/* 고객번호 */
+		      , TPMI.MPHN_NO												/* 휴대폰번호 */
+		      , TPR.PAY_AMT													/* 거래금액 */
+		      , (TPR.PAY_AMT - TPR.AC_PAY_AMT) AS SALE_AMT					/* 할인금액 */
+		      , TPR.AC_PAY_AMT												/* 청구금액 */
+		      , TCPS.PAY_SVC_NM												/* 가맹점명 */
+		      , TPRM.GODS_NM												/* 상품명 */
+		      , TPR.SMPL_PAY_YN												/* 고객상태 : 간소화 결제여부 */
+		      , TPRM.CNCL_YN												/* 취소여부 */
+		      , TPRM.TRD_NO													/* 결제승인(구매)번호 */
+		      , TCCC.TEL_NO													/* 고객센터 */
+		      , TEI.ENTP_ID													/* 법인ID */
+		      , TPRM.CP_CD													/* 가맹점코드 */
+		      , TPR.AUTHTI_CLF_FLG											/* 인증구분 */
+		FROM TP_PAY_RSLT_MST 			TPRM
+			JOIN TB_PAY_MPHN_INFO 		TPMI ON TPRM.PAY_MPHN_ID 	= TPMI.PAY_MPHN_ID AND TPRM.PAYR_SEQ = TPMI.PAYR_SEQ
+			JOIN TB_CP_PAY_SVC     		TCPS ON TPRM.CP_CD 			= TCPS.CP_CD
+			JOIN TP_PAY_REQ 			TPR  ON TPRM.TRD_NO 		= TPR.TRD_NO AND TPRM.TRD_DD = TPR.REQ_DD
+			LEFT JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID 	= TEI.ENTP_ID
+			LEFT JOIN (
+				SELECT
+					ENTP_ID,
+					LISTAGG(TEL_NO, ', ') WITHIN GROUP(ORDER BY TEL_NO) AS TEL_NO
+				FROM TN_CP_CLCT_CNTC
+				WHERE USE_YN = 'Y'
+				GROUP BY ENTP_ID
+			) TCCC ON TEI.ENTP_ID = TCCC.ENTP_ID
+		WHERE 	TPRM.PAY_SUCC_YN = 'Y'
+		<include refid="commonSearchConditionSql"/>
+		ORDER BY TPRM.TRD_DT DESC
+	</select>
+	
+	
+	<select id="selectCnslDetailList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslDetailList, 전체 상담이력 리스트 조회, 2015-12-28 */
+				PT.*
+		FROM (
+				SELECT
+						ROWNUM AS RNUM, A.*
+				FROM (
+						SELECT
+								TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT
+							  , (
+									SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCD.REGR
+									UNION ALL
+									SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCD.REGR
+								) AS REGR
+						      , TCD.RCPT_NO
+						      , TCD.CNSL_CLF_UPR_CD
+						      , TCD.CNSL_CLF_LWR_CD
+						      , TCD.PROC_YN
+						      , TCD.CNSL_CTNT
+						      , TCD.PROC_DD
+						      , TCD.PROC_CTNT
+						      , (
+									SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCD.LAST_CHGR
+									UNION ALL
+									SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCD.LAST_CHGR
+								) AS LAST_CHGR
+						      , TCCT.CNSL_TJUR_CTNT
+						      , CASE
+						      		WHEN TCCT.TJUR_CLF_FLG = 'C' THEN TCCT.TJUR_CLF_FLG
+						      		ELSE TCCT.DEPT_CD
+						      END AS CNSL_TJUR_CD
+						      , TCPS.PAY_SVC_NM
+						FROM TN_CNSL_DTL 				TCD
+							JOIN TB_PAY_MPHN_INFO 		TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+							LEFT JOIN TB_CP_PAY_SVC 	TCPS ON TCD.CP_CD = TCPS.CP_CD
+							LEFT JOIN TN_CNSL_CP_TJUR 	TCCT ON TCD.RCPT_NO = TCCT.RCPT_NO
+						WHERE	1 = 1
+						<include refid="commonCnslDetailSql"/>
+						ORDER BY TCD.REG_DT DESC
+				) A
+				<![CDATA[
+				WHERE ROWNUM <= #{pageParam.endRow}
+		)PT
+		WHERE PT.RNUM >= #{pageParam.startRow}
+		]]>
+	</select>
+	
+	<select id="selectCnslDetailListCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslDetailListCount, 전체 상담이력 카운트 조회, 2015-12-28 */
+				COUNT(*)
+		FROM TN_CNSL_DTL 				TCD
+			JOIN TB_PAY_MPHN_INFO 		TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+			LEFT JOIN TB_CP_PAY_SVC 	TCPS ON TCD.CP_CD = TCPS.CP_CD
+		WHERE 	1 = 1
+		<include refid="commonCnslDetailSql"/>
+	</select>
+	
+	<!-- 상담내용, 처리내용 ResultMap -->
+	<resultMap id="cnslDetailResult" type="com.skplanet.impay.ccs.csm.model.CnslDetail">
+		<id property="rcptNo" column="RCPT_NO"/>
+		<result property="cnslTypCd" column="CNSL_TYP_CD"/>
+		<result property="rcptClf" column="RCPT_CLF"/>
+		<result property="payMphnId" column="PAY_MPHN_ID"/>
+		<result property="entpId" column="ENTP_ID"/>
+		<result property="cpCd" column="CP_CD"/>
+		<result property="commcClf" column="COMMC_CLF"/>
+		<result property="payCndiCd" column="PAY_CNDI_CD"/>
+		<result property="cnslClfUprCd" column="CNSL_CLF_UPR_CD"/>
+		<result property="cnslClfLwrCd" column="CNLS_CLF_LWR_CD"/>
+		<result property="rcptMthdCd" column="RCPT_MTHD_CD"/>
+		<result property="cnslCtnt" column="CNSL_CTNT"/>
+		<result property="procCtnt" column="PROC_CTNT"/>
+		<result property="procYn" column="PROC_YN"/>
+		<result property="procDt" column="PROC_DT"/>
+		<result property="procDd" column="PROC_DD"/>
+		<result property="pybkRcptNo" column="PYBK_RCPT_NO"/>
+		<result property="wlRegNo" column="WL_REG_NO"/>
+		<result property="dataRegNo" column="DATA_REG_NO"/>
+		<result property="regDt" column="REG_DT"/>
+		<result property="regr" column="REGR"/>
+		<result property="lastChgDt" column="LAST_CHG_DT"/>
+		<result property="lastChgr" column="LAST_CHGR"/>
+		<result property="chgYn" column="CHG_YN"/>
+		<result property="cnslEvntCd" column="CNSL_EVNT_CD"/>
+		<result property="cnslTjurCd" column="CNSL_TJUR_CD"/>
+		<result property="tjurProcDt" column="TJUR_PROC_DT"/>
+		<result property="custTypFlg" column="CUST_TYP_FLG"/>
+		<association property="tradeModel" resultMap="tradeResult"/>
+	</resultMap>
+	
+	<resultMap id="tradeResult" type="com.skplanet.impay.ccs.csm.model.TradeModel">
+		<id property="trdNo" column="TRD_NO"/>
+		<result property="trdTypCd" column="TRD_TYP_CD"/>
+		<result property="commcClf" column="COMMC_CLF"/>
+		<result property="payAmt" column="PAY_AMT"/>
+		<result property="paySvcNm" column="PAY_SVC_NM"/>
+		<result property="godsNm" column="GODS_NM"/>
+		<result property="trdDt" column="TRD_DT"/>
+		<result property="cnclDt" column="CNCL_DT"/>
+		<result property="avlCncl" column="AVL_CNCL"/>
+	</resultMap>
+	
+	<select id="selectCnslDetail" parameterType="string" resultMap="cnslDetailResult">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslDetail, 상담이력건 조회, 2015-12-28 */
+				TCD.RCPT_NO
+		      , TCD.CNSL_TYP_CD
+		      , TCD.RCPT_CLF
+		      , TCD.PAY_MPHN_ID
+		      , TEI.ENTP_ID
+		      , TCD.CP_CD
+		      , TCD.PAY_CNDI_CD
+		      , TCD.CNSL_CLF_UPR_CD
+		      , TCD.CNSL_CLF_LWR_CD
+		      , TCD.RCPT_MTHD_CD
+		      , TCD.CNSL_CTNT
+		      , TCD.PROC_CTNT
+		      , TCD.PROC_YN
+		      , TO_CHAR(TO_DATE(TCD.PROC_DD, 'YYYYMMDD'), 'YYYY.MM.DD') AS PROC_DT
+		      , TCD.PROC_DD
+		      , TCD.PYBK_RCPT_NO
+		      , TCD.WL_REG_NO
+		      , TCD.DATA_REG_NO
+		      , TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT
+		      , (
+					SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCD.REGR
+					UNION ALL
+					SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCD.REGR
+			  ) AS REGR
+		      , TO_CHAR(TCD.LAST_CHG_DT, 'YYYY.MM.DD HH24:MI:SS') AS LAST_CHG_DT
+		      , (
+					SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCD.LAST_CHGR
+					UNION ALL
+					SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCD.LAST_CHGR
+			  ) AS LAST_CHGR
+		      , TCD.CHG_YN
+		      , TCD.CNSL_EVNT_CD
+		      , TPR.TRD_NO
+		      , TPR.TRD_TYP_CD
+		      , TPR.COMMC_CLF
+		      , TPR.PAY_AMT
+		      , TCPS.PAY_SVC_NM
+		      , TPR.GODS_NM
+		      , TO_CHAR(TPR.REQ_DT, 'YYYY.MM.DD') AS TRD_DT
+		      , TO_CHAR(TPR.CNCL_DT, 'YYYY.MM.DD') AS CNCL_DT
+		      , CASE
+					WHEN TPR.PAY_SUCC_YN = 'Y' AND TPR.CNCL_YN = 'N' AND SYSDATE <![CDATA[<]]> LAST_DAY(TPR.REQ_DT) + 1 THEN 'Y'
+					ELSE 'N'
+		        END AS AVL_CNCL
+		      , TCCC.TEL_NO
+		      , CASE
+		      		WHEN TCCT.TJUR_CLF_FLG = 'C' THEN TCCT.TJUR_CLF_FLG
+		      		ELSE TCCT.DEPT_CD
+		      END AS CNSL_TJUR_CD
+		      , TO_CHAR(TCCT.REG_DT, 'YY.MM.DD HH24:MI:SS') AS TJUR_PROC_DT
+		      , TCD.CUST_TYP_FLG
+		FROM TN_CNSL_DTL 				TCD
+			LEFT JOIN TB_CP_PAY_SVC 	TCPS ON TCD.CP_CD 			= TCPS.CP_CD
+			LEFT JOIN TN_CNSL_CP_TJUR 	TCCT ON TCD.RCPT_NO 		= TCCT.RCPT_NO
+			LEFT JOIN TN_CNSL_PAY_REL 	TCPR ON TCD.RCPT_NO 		= TCPR.RCPT_NO
+			LEFT JOIN TP_PAY_REQ 		TPR  ON TCPR.TRD_NO 		= TPR.TRD_NO
+			LEFT JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID 	= TEI.ENTP_ID
+			LEFT JOIN (
+				SELECT
+					ENTP_ID,
+					LISTAGG(TEL_NO, ', ') WITHIN GROUP(ORDER BY TEL_NO) AS TEL_NO
+				FROM TN_CP_CLCT_CNTC
+				WHERE USE_YN = 'Y'
+				GROUP BY ENTP_ID
+			) TCCC ON TEI.ENTP_ID = TCCC.ENTP_ID
+		WHERE	TCD.RCPT_NO = #{rcptNo}
+	</select>
+    
+    <select id="selectNpayHistoryCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+    	SELECT  /* impay-ccs-web, csm/CnslMngMapper.xml, selectNpayHistoryCount, 미납이력 및 가산금 부과내역 목록 카운트, 2016-01-04 */
+    			COUNT(*) 
+		FROM 	TB_BILL_NPAY_ADD_DTL BNAD
+		WHERE 	1=1
+		<if test='payMphnId != null and !payMphnId.equals("")'>
+					AND BNAD.PAY_MPHN_ID = #{payMphnId}
+		</if>
+		<if test='selectDate != null and !selectDate.equals("")'>
+			<choose>
+            	<when test='selectDate.equals("M")'> 		
+					AND BNAD.BILL_YM = #{strtMon}
+				</when>
+				<when test='selectDate.equals("T")'>
+					<![CDATA[				
+					AND BNAD.BILL_YM BETWEEN #{strtDt} AND #{endDt}
+					]]> 
+				</when>
+			</choose>
+		</if>
+    </select> 
+    
+    <select id="selectNpayHistoryList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.NpayHistoryAddDtl">
+   		/* impay-ccs-web, csm/CnslMngMapper.xml, selectNpayHistoryList, 미납이력 및 가산금 부과내역 목록 조회, 2016-01-04 */
+		SELECT
+    			BNAD.BILL_YM,
+    			BNAD.AC_PAY_AMT,
+				BNAD.RCPT_AMT,
+       			BNAD.NPAY_AMT,
+       			BNAD.BILL_AMT,
+               	BNAD.PAY_MPHN_ID, 
+       			TO_CHAR(PR.REQ_DT, 'YY.MM.DD HH24:MI:SS') AS TRD_DD,
+       			CPS.PAY_SVC_NM AS CP_NM,
+       			PR.GODS_NM,
+       			PMI.MPHN_NO,
+       			CASE WHEN BNAD.CNCL_YN = 'Y' THEN 'Y' ELSE 'N' END TRD_STAT
+		FROM 	TB_BILL_NPAY_ADD_DTL          BNAD   
+   				LEFT JOIN  TP_PAY_REQ         PR      ON PR.TRD_NO = BNAD.TRD_NO
+				LEFT JOIN  TB_PAY_MPHN_INFO   PMI     ON PMI.PAY_MPHN_ID = BNAD.PAY_MPHN_ID
+				, TB_CP_PAY_SVC 				  CPS
+		WHERE 	1=1
+			<if test='payMphnId != null and !payMphnId.equals("")'>
+				AND BNAD.PAY_MPHN_ID = #{payMphnId}
+			</if>
+			<if test='selectDate != null and !selectDate.equals("")'>
+				<choose>
+			       	<when test='selectDate.equals("M")'> 		
+						AND BNAD.BILL_YM = #{strtMon}
+					</when>
+					<when test='selectDate.equals("T")'>
+						<![CDATA[				
+						AND BNAD.BILL_YM BETWEEN #{strtDt} AND #{endDt}
+						]]> 
+					</when>
+				</choose>
+			</if>
+				AND PR.CP_CD = CPS.CP_CD   
+	   ORDER BY BNAD.BILL_YM DESC,  TRD_DD  DESC 
+    </select>
+    
+    <update id="insertCnslDtl" parameterType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	<selectKey keyProperty="rcptNo" resultType="string" order="BEFORE">
+    		SELECT PKG_SEQ.FN_GET_SEQ('TN_CNSL_DTL') FROM DUAL
+    	</selectKey>
+    	INSERT	/* impay-ccs-web, csm/CnslMngMapper.xml, insertCnslDtl, 상담내역 등록, 2016-01-05 */
+    	INTO 	TN_CNSL_DTL (
+				  RCPT_NO
+				, CNSL_TYP_CD
+				, RCPT_CLF
+				, PAY_MPHN_ID
+				, ENTP_ID
+				, CP_CD
+				, COMMC_CLF
+				, PAY_CNDI_CD
+				, TRD_DD
+				, CNCL_DD
+				, CNCL_YN
+				, CNSL_CLF_UPR_CD
+				, CNSL_CLF_LWR_CD
+				, RCPT_MTHD_CD
+				, CNSL_CTNT
+				, PROC_CTNT
+				, PROC_YN
+				, PROC_DD
+				, PYBK_RCPT_NO
+				, WL_REG_NO
+				, DATA_REG_NO
+				, REG_DT
+				, REGR
+				, LAST_CHG_DT
+				, LAST_CHGR
+				, CNSL_EVNT_CD
+				, CUST_TYP_FLG
+		) VALUES (
+				  #{rcptNo}
+			    , #{cnslTypCd}
+			    , #{rcptClf}
+			    , #{payMphnId}
+			    , #{entpId, jdbcType=VARCHAR}
+			    , #{cpCd, jdbcType=VARCHAR}
+			    , #{commcClf, jdbcType=CHAR}
+			    , #{payCndiCd, jdbcType=CHAR}
+			    , #{trdDd, jdbcType=CHAR}
+			    , #{cnclDd, jdbcType=CHAR}
+			    , #{cnclYn, jdbcType=CHAR}
+				, #{cnslClfUprCd, jdbcType=CHAR}
+			    , #{cnslClfLwrCd, jdbcType=CHAR}
+			    , #{rcptMthdCd}
+			    , #{cnslCtnt}
+			    , #{procCtnt, jdbcType=CLOB}
+				, 'N'
+			    , #{procDd, jdbcType=CHAR}
+			    , #{pybkRcptNo, jdbcType=NUMERIC}
+			    , #{wlRegNo, jdbcType=NUMERIC}
+			    , #{dataRegNo, jdbcType=VARCHAR}
+				, SYSDATE
+			    , #{regr}
+			    , SYSDATE
+			    , #{regr}
+			    , #{cnslEvntCd, jdbcType=CHAR}
+			    , #{custTypFlg, jdbcType=CHAR}
+		)
+    </update>
+    
+    <update id="updateCnslDtl" parameterType="com.skplanet.impay.ccs.csm.model.CnslDetail" >
+    	UPDATE	/* impay-ccs-web, csm/CnslMngMapper.xml, updateCnslDtl, 상담내역 수정, 2016-01-05 */
+    			TN_CNSL_DTL
+    	SET
+    		<if test='cnslTypCd != null and !cnslTypCd.equals("")'>
+    			CNSL_TYP_CD = #{cnslTypCd},
+    		</if>
+    		<if test='cnslClfUprCd != null'>
+    			CNSL_CLF_UPR_CD = #{cnslClfUprCd},
+    		</if>
+    		<if test='cnslClfLwrCd != null'>
+    			CNSL_CLF_LWR_CD = #{cnslClfLwrCd},
+    		</if>
+    		<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>
+    			RCPT_MTHD_CD = #{rcptMthdCd},
+    		</if>
+    		<if test='cnslCtnt != null'>
+    			CNSL_CTNT = #{cnslCtnt},
+    		</if>
+    		<if test='procCtnt != null'>
+    			PROC_CTNT = #{procCtnt},
+    			PROC_DD = TO_CHAR(SYSDATE, 'YYYYMMDD'),
+    		</if>
+    		<if test='procYn != null'>
+    			PROC_YN = #{procYn},
+    		</if>
+    		<if test='pybkRcptNo != null and !pybkRcptNo.equals("")'>
+    			PYBK_RCPT_NO = #{pybkRcptNo},
+    		</if>
+    		<if test='wlRegNo != null and !wlRegNo.equals("")'>
+    			WL_REG_NO = #{wlRegNo},
+    		</if>
+    		<if test='dataRegNo != null and !dataRegNo.equals("")'>
+    			DATA_REG_NO = #{dataRegNo},
+    		</if>
+    		<if test='cnslEvntCd != null'>
+    			CNSL_EVNT_CD = #{cnslEvntCd},
+    		</if>
+    		<if test='custTypFlg != null'>
+    			CUST_TYP_FLG = #{custTypFlg},
+    		</if>
+    		CHG_YN = 'Y',
+    		LAST_CHG_DT = SYSDATE,
+    		LAST_CHGR = #{lastChgr}
+    	WHERE	RCPT_NO = #{rcptNo}
+    </update>
+    
+    <select id="selectCnslChgLast" parameterType="string" resultType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslChgLast, 상담내역 변경이력 SEQ 조회, 2016-01-05 */
+    			  RCPT_NO
+				, SEQ
+				, CNSL_CTNT
+				, PROC_CTNT
+				, PROC_YN
+				, PROC_DD
+				, LAST_CHG_DT
+				, LAST_CHGR
+				, TO_CHAR(RSLT_NOTI_DT, 'YYYY.MM.DD') AS RSLT_NOTI_DT
+				, RSLT_NOTI_MTHD
+				, SND_REQ_SEQ
+    	FROM TH_CNSL_CHG
+    	WHERE RCPT_NO = #{rcptNo}
+    	AND ROWNUM = 1
+    	ORDER BY SEQ DESC
+    </select>
+    
+    <update id="insertCnslChg" parameterType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	<selectKey keyProperty="seq" resultType="int" order="BEFORE">
+    		SELECT MAX(SEQ) + 1 FROM (
+    			SELECT SEQ FROM TH_CNSL_CHG WHERE RCPT_NO = #{rcptNo}
+    			UNION ALL
+    			SELECT 0 SEQ FROM DUAL
+    		)
+    	</selectKey>
+   		INSERT	/* impay-ccs-web, csm/CnslMngMapper.xml, insertCnslChg, 상담내역 변경이력 등록, 2016-01-05 */
+   		INTO 	TH_CNSL_CHG (
+				  RCPT_NO
+			    , SEQ
+			    , CNSL_CTNT
+			    , PROC_CTNT
+			    , PROC_YN
+			    , PROC_DD
+			    , LAST_CHG_DT
+			    , LAST_CHGR
+			    <if test='rsltNotiMthd != null and !rsltNotiMthd.equals("")'>
+			    , RSLT_NOTI_DT
+				, RSLT_NOTI_MTHD
+			    </if>
+				, SND_REQ_SEQ
+		) VALUES (
+				  #{rcptNo}
+			    , #{seq}
+			    , #{cnslCtnt, jdbcType=CLOB}
+			    , #{procCtnt, jdbcType=CLOB}
+			    , #{procYn, jdbcType=CHAR}
+			    , #{procDd, jdbcType=CHAR}
+			    , SYSDATE
+			    , #{lastChgr}
+			    <if test='rsltNotiMthd != null and !rsltNotiMthd.equals("")'>
+			    , SYSDATE
+			    , #{rsltNotiMthd}
+			    </if>
+			    , #{sndReqSeq, jdbcType=NUMERIC}
+			    
+		)
+    </update>
+    
+    <update id="updateCnslChg" parameterType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	<selectKey keyProperty="seq" resultType="int" order="BEFORE">
+    		SELECT MAX(SEQ) + 1 FROM (
+    			SELECT SEQ FROM TH_CNSL_CHG WHERE RCPT_NO = #{rcptNo}
+    			UNION ALL
+    			SELECT 0 SEQ FROM DUAL
+    		)
+    	</selectKey>
+   		INSERT	/* impay-ccs-web, csm/CnslMngMapper.xml, updateCnslChg, 상담내역 변경이력 등록, 2016-04-25 */
+   		INTO 	TH_CNSL_CHG (
+				  RCPT_NO
+			    , SEQ
+			    , CNSL_CTNT
+			    , PROC_CTNT
+			    , PROC_YN
+			    , PROC_DD
+			    , LAST_CHG_DT
+			    , LAST_CHGR
+			    , RSLT_NOTI_DT
+				, RSLT_NOTI_MTHD
+				, SND_REQ_SEQ
+		)
+		SELECT  *
+		FROM (
+				WITH OLD_CNSL_CHG AS (
+					SELECT
+						  RSLT_NOTI_DT
+						, RSLT_NOTI_MTHD
+						, SND_REQ_SEQ
+			    	FROM TH_CNSL_CHG
+			    	WHERE RCPT_NO = #{rcptNo}
+			    	AND ROWNUM = 1
+			    	ORDER BY SEQ DESC
+				)
+				SELECT
+					  #{rcptNo} AS RCPT_NO
+				    , #{seq} AS SEQ
+				    , #{cnslCtnt, jdbcType=CLOB} AS CNSL_CTNT
+				    , #{procCtnt, jdbcType=CLOB} AS PROC_CTNT
+				    , #{procYn, jdbcType=CHAR} AS PROC_YN
+				    , #{procDd, jdbcType=CHAR} AS PROC_DD
+				    , SYSDATE AS LAST_CHG_DT
+				    , #{lastChgr} AS LAST_CHGR
+				    , OCC.*
+				FROM OLD_CNSL_CHG OCC
+		)
+    </update>
+    
+    <update id="insertCnslPayRel" parameterType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	INSERT	/* impay-ccs-web, csm/CnslMngMapper.xml, insertCnslPayRel, 상담내역 결제연동 등록, 2016-01-05 */
+    	INTO 	TN_CNSL_PAY_REL (
+				  RCPT_NO
+				, TRD_NO
+		) VALUES (
+				  #{rcptNo}
+				, #{tradeModel.trdNo}
+		)
+    </update>
+    
+    <select id="selectCnslChgListByPaging" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.CnslDetail">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslChgListByPaging, 상담내역 변경이력 리스트 조회 (페이징처리), 2016-01-11 */
+				PT.*
+		FROM (
+				SELECT
+						ROWNUM AS RNUM, A.*
+				FROM (
+						SELECT
+								  TCD.RCPT_NO
+							    , TCD.CNSL_TYP_CD
+							    , TCD.RCPT_CLF
+							    , TCD.PAY_CNDI_CD
+							    , TCD.CNSL_CLF_UPR_CD
+							    , TCD.CNSL_CLF_LWR_CD
+							    , TCD.RCPT_MTHD_CD
+							    , TCC.CNSL_CTNT
+							    , TCC.PROC_CTNT
+							    , TCC.PROC_YN
+							    , TCC.PROC_DD
+							    , TCD.PYBK_RCPT_NO
+							    , TCD.WL_REG_NO
+							    , TCD.DATA_REG_NO
+							    , TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD') AS REG_DT
+							    , (
+									SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCD.REGR
+									UNION ALL
+									SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCD.REGR
+							  	) AS REGR
+							    , TO_CHAR(TCC.LAST_CHG_DT, 'YYYY.MM.DD') AS LAST_CHG_DT
+							    , (
+									SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCC.LAST_CHGR
+									UNION ALL
+									SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCC.LAST_CHGR
+							  	) AS LAST_CHGR
+							    , TCD.CHG_YN
+							    , TPR.TRD_NO
+							    , TCCT.CNSL_TJUR_CTNT
+								, CASE
+										WHEN TCCT.TJUR_CLF_FLG = 'C' THEN TCCT.TJUR_CLF_FLG
+										ELSE TCCT.DEPT_CD
+								END AS CNSL_TJUR_CD
+								, TO_CHAR(TCC.RSLT_NOTI_DT, 'YYYY.MM.DD') AS RSLT_NOTI_DT
+								, TCC.RSLT_NOTI_MTHD
+								, TCC.SND_REQ_SEQ
+						FROM 	TN_CNSL_DTL 				TCD
+								JOIN TH_CNSL_CHG 			TCC 	ON TCD.RCPT_NO = TCC.RCPT_NO
+								LEFT JOIN TN_CNSL_PAY_REL 	TCPR 	ON TCD.RCPT_NO = TCPR.RCPT_NO
+								LEFT JOIN TP_PAY_REQ 		TPR 	ON TCPR.TRD_NO = TPR.TRD_NO
+								LEFT JOIN TN_CNSL_CP_TJUR 	TCCT 	ON TCD.RCPT_NO = TCCT.RCPT_NO
+						WHERE 1 = 1
+						<if test="trdNos != null and trdNos.length != 0">
+						AND TPR.TRD_NO IN
+						<foreach collection="trdNos" item="trdNo" open="(" separator="," close=")">
+							#{trdNo}
+						</foreach>
+						</if>
+						<if test='rcptNo != null and !rcptNo.equals("")'>
+						AND TCD.RCPT_NO = #{rcptNo}
+						</if>
+						ORDER BY TCC.SEQ DESC
+				) A
+				<![CDATA[
+				WHERE ROWNUM <= #{pageParam.endRow}
+		) PT
+		WHERE PT.RNUM >= #{pageParam.startRow}
+		]]>
+    </select>
+    
+    <select id="selectCnslChgListCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslChgListCount, 상담내역 변경이력 카운트 조회, 2016-01-11 */
+				COUNT(*)
+		FROM 	TN_CNSL_DTL 				TCD
+				JOIN TH_CNSL_CHG 			TCC 	ON TCD.RCPT_NO = TCC.RCPT_NO
+				LEFT JOIN TN_CNSL_PAY_REL 	TCPR 	ON TCD.RCPT_NO = TCPR.RCPT_NO
+				LEFT JOIN TP_PAY_REQ 		TPR 	ON TCPR.TRD_NO = TPR.TRD_NO
+		WHERE 1 = 1
+		<if test="trdNos != null and trdNos.length != 0">
+		AND TPR.TRD_NO IN
+		<foreach collection="trdNos" item="trdNo" open="(" separator="," close=")">
+			#{trdNo}
+		</foreach>
+		</if>
+		<if test='rcptNo != null and !rcptNo.equals("")'>
+		AND TCD.RCPT_NO = #{rcptNo}
+		</if>
+    </select>
+    
+    <select id="selectTradeTryListByPaging" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.TradeModel">
+		SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeTryListByPaging, 거래시도 리스트 조회 (페이징처리), 2016-01-14 */
+				PT.*
+		FROM (
+				SELECT
+		      			ROWNUM AS RNUM, B.*
+		      	FROM (
+						SELECT
+								TPR.TRD_TYP_CD												/* 거래유형코드 */
+				              , TO_CHAR(TPR.REQ_DT, 'YY.MM.DD HH24:MI:SS') AS TRD_DT		/* 거래일시 */
+				              <![CDATA[
+						      , CASE
+									WHEN TPMI.BRTH_YY IS NOT NULL THEN TO_CHAR(TO_DATE(TPMI.BRTH_YY || SUBSTR(TPMI.BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+									WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) > 16 THEN TO_CHAR(TO_DATE('19' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+									WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) <= 16 THEN TO_CHAR(TO_DATE('20' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+			                        ELSE NULL
+								END AS BRTH_YMD												/* 생년월일 */
+							  ]]>
+				              , TPR.COMMC_CLF												/* 이통사 구분코드 */
+				              , TPMI.MPHN_NO												/* 결제폰 번호 */
+				              , TPR.PAYR_SEQ												/* 고객번호 */
+				              , TPR.PAY_AMT													/* 거래금액 */
+				              , TCPS.PAY_SVC_NM												/* 가맹점 명 */
+				              , TPR.IN_RSLT_CD												/* 내부오류 */
+				              , TPR.EXTR_RSLT_CD											/* 외부오류 */
+				              , TPR.IN_RSLT_MSG												/* 내부오류 메시지 */
+				              , TPR.TRD_NO													/* 결제 거래번호 (결제승인번호) */
+				              , CASE
+				              		WHEN NVL(TPR.PAY_SUCC_YN, 'N') = 'N' 	THEN '3'	/* 인증 */
+				              		WHEN TPR.CNCL_YN = 'Y' 	 	  			THEN '2'	/* 취소 */
+				                    WHEN TPR.CNCL_YN = 'N' 	 	  			THEN '1'	/* 결제 */
+				                END AS TRANS_CD 											/* 전문코드 */
+				              , TCCC.TEL_NO													/* 고객센터 */
+				              , TPR.AUTHTI_CLF_FLG											/* 인증구분 */
+				        FROM TP_PAY_REQ 				  	TPR
+				        	 JOIN TB_PAY_MPHN_INFO  		TPMI ON TPR.PAY_MPHN_ID = TPMI.PAY_MPHN_ID AND TPR.PAYR_SEQ = TPMI.PAYR_SEQ
+				        	 JOIN TB_CP_PAY_SVC     		TCPS ON TPR.CP_CD = TCPS.CP_CD
+				        	 LEFT JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID = TEI.ENTP_ID
+							 LEFT JOIN (
+								SELECT
+									ENTP_ID,
+									LISTAGG(TEL_NO, ', ') WITHIN GROUP(ORDER BY TEL_NO) AS TEL_NO
+								FROM TN_CP_CLCT_CNTC
+								WHERE USE_YN = 'Y'
+								GROUP BY ENTP_ID
+							) TCCC ON TEI.ENTP_ID = TCCC.ENTP_ID
+				        WHERE	1 = 1
+				        <!-- 조회기간 -->
+						<if test='selectDate != null and !selectDate.equals("")'>
+							<!-- 월별 -->
+							<if test='selectDate.equals("M") and strtMon != null'>
+							<![CDATA[
+							AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtMon}, 'YYYY.MM'), 'YYYYMMDD') AND TPR.REQ_DD < TO_CHAR(LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1, 'YYYYMMDD') 
+							]]>
+							</if>
+							<!-- 기간별 -->
+							<if test='selectDate.equals("T")'>
+								<if test='strtDt != null and !strtDt.equals("")'>
+								<![CDATA[
+								AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtDt}, 'YYYY.MM.DD'), 'YYYYMMDD')
+								]]>
+								</if>
+								<if test='endDt != null and !endDt.equals("")'>
+								<![CDATA[
+								AND TPR.REQ_DD < TO_CHAR(TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1, 'YYYYMMDD') 
+								]]>
+								</if>
+							</if>
+						</if>
+						<!-- 상담자 휴대번호 -->
+						<choose>
+							<when test='payMphnId != null and !payMphnId.equals("")'>
+							AND TPR.PAY_MPHN_ID = #{payMphnId}
+							</when>
+							<when test='payrSeq != null and !payrSeq.equals("")'>
+							AND TPR.PAYR_SEQ = #{payrSeq}
+							</when>
+							<when test='custMphnNo != null and !custMphnNo.equals("")'>
+							AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{custMphnNo})
+							</when>
+						</choose>
+						<!-- 가맹점 코드 -->
+						<if test='cpCd != null and !cpCd.equals("")'>
+						AND TPR.CP_CD = #{cpCd}
+						</if>
+				        ORDER BY TPR.REQ_DT DESC
+				) B
+				<![CDATA[
+				WHERE ROWNUM <= #{pageParam.endRow}
+		) PT
+      	WHERE PT.RNUM >= #{pageParam.startRow}
+		]]>
+    </select>
+    
+    <select id="selectTradeTryListCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeTryListCount, 거래시도 리스트 카운트 조회, 2016-01-14 */
+				COUNT(*)
+        FROM TP_PAY_REQ 				  	TPR
+        	 JOIN TB_PAY_MPHN_INFO  		TPMI ON TPR.PAY_MPHN_ID = TPMI.PAY_MPHN_ID AND TPR.PAYR_SEQ = TPMI.PAYR_SEQ
+        	 JOIN TB_CP_PAY_SVC     		TCPS ON TPR.CP_CD = TCPS.CP_CD
+        WHERE	1 = 1
+        <!-- 조회기간 -->
+		<if test='selectDate != null and !selectDate.equals("")'>
+			<!-- 월별 -->
+			<if test='selectDate.equals("M") and strtMon != null'>
+			<![CDATA[
+			AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtMon}, 'YYYY.MM'), 'YYYYMMDD') AND TPR.REQ_DD < TO_CHAR(LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1, 'YYYYMMDD') 
+			]]>
+			</if>
+			<!-- 기간별 -->
+			<if test='selectDate.equals("T")'>
+				<if test='strtDt != null and !strtDt.equals("")'>
+				<![CDATA[
+				AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtDt}, 'YYYY.MM.DD'), 'YYYYMMDD')
+				]]>
+				</if>
+				<if test='endDt != null and !endDt.equals("")'>
+				<![CDATA[
+				AND TPR.REQ_DD < TO_CHAR(TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1, 'YYYYMMDD') 
+				]]>
+				</if>
+			</if>
+		</if>
+		<!-- 상담자 휴대번호 -->
+		<choose>
+			<when test='payMphnId != null and !payMphnId.equals("")'>
+			AND TPR.PAY_MPHN_ID = #{payMphnId}
+			</when>
+			<when test='payrSeq != null and !payrSeq.equals("")'>
+			AND TPR.PAYR_SEQ = #{payrSeq}
+			</when>
+			<when test='custMphnNo != null and !custMphnNo.equals("")'>
+			AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{custMphnNo})
+			</when>
+		</choose>
+		<!-- 가맹점 코드 -->
+		<if test='cpCd != null and !cpCd.equals("")'>
+		AND TPR.CP_CD = #{cpCd}
+		</if>
+    </select>
+    
+    <select id="selectTradeTryList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.TradeModel">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectTradeTryList, 거래시도 리스트 조회, 2016-01-14 */
+				TPR.TRD_TYP_CD												/* 거래유형코드 */
+              , TO_CHAR(TPR.REQ_DT, 'YY.MM.DD HH24:MI:SS') AS REQ_DT		/* 거래일시 */
+              <![CDATA[
+		      , CASE
+					WHEN TPMI.BRTH_YY IS NOT NULL THEN TO_CHAR(TO_DATE(TPMI.BRTH_YY || SUBSTR(TPMI.BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+					WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) > 16 THEN TO_CHAR(TO_DATE('19' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+					WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) <= 16 THEN TO_CHAR(TO_DATE('20' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+                    ELSE NULL
+				END AS BRTH_YMD												/* 생년월일 */
+			  ]]>
+              , TPR.COMMC_CLF												/* 이통사 구분코드 */
+              , TPMI.MPHN_NO												/* 결제폰 번호 */
+              , TPR.PAYR_SEQ												/* 고객번호 */
+              , TPR.PAY_AMT													/* 거래금액 */
+              , TCPS.PAY_SVC_NM												/* 가맹점 명 */
+              , TPR.IN_RSLT_CD												/* 내부오류 */
+              , TPR.EXTR_RSLT_CD											/* 외부오류 */
+              , TPR.IN_RSLT_MSG												/* 내부오류 메시지 */
+              , TPR.TRD_NO													/* 결제 거래번호 (결제승인번호) */
+              , CASE
+              		WHEN NVL(TPR.PAY_SUCC_YN, 'N') = 'N' 	THEN '3'	/* 인증 */
+              		WHEN TPR.CNCL_YN = 'Y' 	 	  			THEN '2'	/* 취소 */
+                    WHEN TPR.CNCL_YN = 'N' 	 	  			THEN '1'	/* 결제 */
+                END AS TRANS_CD 											/* 전문코드 */
+              , TCCC.TEL_NO													/* 고객센터 */
+              , TPR.AUTHTI_CLF_FLG											/* 인증구분 */
+              , TPR.REQ_DD													/* 요청일자 */
+              , TPR.CNCL_DD													/* 취소일자 */
+		      , CASE
+		      		WHEN TPR.CNCL_YN = 'N' AND SYSDATE <![CDATA[<]]> LAST_DAY(TPR.REQ_DT) + 1 THEN 'Y'
+		      		WHEN TPR.CNCL_YN = 'N' AND SYSDATE <![CDATA[>=]]> LAST_DAY(TPR.REQ_DT) + 1 THEN 'N'
+		      		WHEN TPR.CNCL_YN = 'Y' THEN 'N'
+		      	END AS AVL_CNCL												/* 취소가능여부 */
+		      , TPR.PAY_AMT													/* 거래금액 */
+		      , TPR.GODS_NM													/* 상품명 */
+		      , TEI.ENTP_ID													/* 법인ID */
+		      , TCPS.CP_CD													/* 가맹점 코드 */
+        FROM TP_PAY_REQ 				  	TPR
+        	 JOIN TB_PAY_MPHN_INFO  		TPMI ON TPR.PAY_MPHN_ID = TPMI.PAY_MPHN_ID AND TPR.PAYR_SEQ = TPMI.PAYR_SEQ
+        	 JOIN TB_CP_PAY_SVC     		TCPS ON TPR.CP_CD = TCPS.CP_CD
+        	 LEFT JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID = TEI.ENTP_ID
+			 LEFT JOIN (
+				SELECT
+					ENTP_ID,
+					LISTAGG(TEL_NO, ', ') WITHIN GROUP(ORDER BY TEL_NO) AS TEL_NO
+				FROM TN_CP_CLCT_CNTC
+				WHERE USE_YN = 'Y'
+				GROUP BY ENTP_ID
+			) TCCC ON TEI.ENTP_ID = TCCC.ENTP_ID
+        WHERE 1 = 1
+        <!-- 조회기간 -->
+		<if test='selectDate != null and !selectDate.equals("")'>
+			<!-- 월별 -->
+			<if test='selectDate.equals("M") and strtMon != null'>
+			<![CDATA[
+			AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtMon}, 'YYYY.MM'), 'YYYYMMDD') AND TPR.REQ_DD < TO_CHAR(LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1, 'YYYYMMDD') 
+			]]>
+			</if>
+			<!-- 기간별 -->
+			<if test='selectDate.equals("T")'>
+				<if test='strtDt != null and !strtDt.equals("")'>
+				<![CDATA[
+				AND TPR.REQ_DD >= TO_CHAR(TO_DATE(#{strtDt}, 'YYYY.MM.DD'), 'YYYYMMDD')
+				]]>
+				</if>
+				<if test='endDt != null and !endDt.equals("")'>
+				<![CDATA[
+				AND TPR.REQ_DD < TO_CHAR(TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1, 'YYYYMMDD') 
+				]]>
+				</if>
+			</if>
+		</if>
+		<!-- 상담자 휴대번호 -->
+		<choose>
+			<when test='payMphnId != null and !payMphnId.equals("")'>
+			AND TPR.PAY_MPHN_ID = #{payMphnId}
+			</when>
+			<when test='payrSeq != null and !payrSeq.equals("")'>
+			AND TPR.PAYR_SEQ = #{payrSeq}
+			</when>
+			<when test='custMphnNo != null and !custMphnNo.equals("")'>
+			AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{custMphnNo})
+			</when>
+		</choose>
+		<!-- 가맹점 코드 -->
+		<if test='cpCd != null and !cpCd.equals("")'>
+		AND TPR.CP_CD = #{cpCd}
+		</if>
+		<!-- 거래번호 리스트 -->
+		<if test="trdNos != null and trdNos.length != 0">
+		AND TPR.TRD_NO IN
+		<foreach collection="trdNos" item="trdNo" open="(" separator="," close=")">
+			#{trdNo}
+		</foreach>
+		</if>
+        ORDER BY TPR.REQ_DT DESC
+    </select>
+    
+    <select id="selectPayItcptListByPaging" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.ccs.csm.model.PayItcptModel">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectPayItcptListByPaging, 결제차단내역 리스트 조회(페이징처리), 2016-01-18 */
+				PT.*
+		FROM (
+				SELECT
+		      			ROWNUM AS RNUM, B.*
+		      	FROM (
+				    	SELECT
+								  TPI.ITCPT_REG_SEQ
+								, TPI.PAYR_SEQ
+								, TPI.PAY_MPHN_ID
+								, TPMI.MPHN_NO
+								, TPI.ITCPT_REQR_CLF_FLG
+								, TPI.ITCPT_CLF_FLG
+								, TPI.PROC_CLF_FLG
+								, TPI.PROC_RSN
+								, TO_CHAR(TPI.REG_DT, 'YY.MM.DD HH24:MI:SS') AS REG_DT
+								, TPI.REGR
+								, TO_CHAR(TPI.LAST_CHG_DT, 'YY.MM.DD HH24:MI:SS') AS LAST_CHG_DT
+								, TPI.LAST_CHGR
+								, CASE
+										WHEN TPI.REG_DT = TPI.LAST_CHG_DT THEN 'N'
+										ELSE 'Y'
+								END AS UPDATE_YN
+								, TPMI.COMMC_CLF
+						FROM 	TH_PAY_ITCPT 			TPI
+							 	JOIN TB_PAY_MPHN_INFO	TPMI ON TPI.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+						WHERE 	TPI.PAY_MPHN_ID = #{payMphnId}
+						<!-- 조회기간 -->
+						<if test='selectDate != null and !selectDate.equals("")'>
+							<!-- 월별 -->
+							<if test='selectDate.equals("M") and strtMon != null'>
+							<![CDATA[
+							AND TPI.REG_DT >= TO_DATE(#{strtMon}, 'YYYY.MM') AND TPI.REG_DT < LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1 
+							]]>
+							</if>
+							<!-- 기간별 -->
+							<if test='selectDate.equals("T")'>
+								<if test='strtDt != null and !strtDt.equals("")'>
+								<![CDATA[
+								AND TPI.REG_DT >= TO_DATE(#{strtDt}, 'YYYY.MM.DD')
+								]]>
+								</if>
+								<if test='endDt != null and !endDt.equals("")'>
+								<![CDATA[
+								AND TPI.REG_DT < TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1 
+								]]>
+								</if>
+							</if>
+						</if>
+						ORDER BY TPI.REG_DT ${pageParam.sortOrder}
+				) B
+				<![CDATA[
+				WHERE ROWNUM <= #{pageParam.endRow}
+		) PT
+      	WHERE PT.RNUM >= #{pageParam.startRow}
+		]]>
+    </select>
+    
+    <select id="selectPayItcptListCount" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="int">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectPayItcptListCount, 결제차단내역 리스트 카운트 조회, 2016-01-18 */
+				COUNT(*)
+		FROM TH_PAY_ITCPT 			TPI
+			 JOIN TB_PAY_MPHN_INFO	TPMI ON TPI.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+		WHERE TPI.PAY_MPHN_ID = #{payMphnId}
+		<!-- 조회기간 -->
+		<if test='selectDate != null and !selectDate.equals("")'>
+			<!-- 월별 -->
+			<if test='selectDate.equals("M") and strtMon != null'>
+			<![CDATA[
+			AND TPI.REG_DT >= TO_DATE(#{strtMon}, 'YYYY.MM') AND TPI.REG_DT < LAST_DAY(TO_DATE(#{strtMon}, 'YYYY.MM')) + 1 
+			]]>
+			</if>
+			<!-- 기간별 -->
+			<if test='selectDate.equals("T")'>
+				<if test='strtDt != null and !strtDt.equals("")'>
+				<![CDATA[
+				AND TPI.REG_DT >= TO_DATE(#{strtDt}, 'YYYY.MM.DD')
+				]]>
+				</if>
+				<if test='endDt != null and !endDt.equals("")'>
+				<![CDATA[
+				AND TPI.REG_DT < TO_DATE(#{endDt}, 'YYYY.MM.DD') + 1 
+				]]>
+				</if>
+			</if>
+		</if>
+    </select>
+    
+    <select id="selectPayItcpt" parameterType="string" resultType="com.skplanet.impay.ccs.csm.model.PayItcptModel">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectPayItcpt, 결제차단내역 단건 조회, 2016-01-18 */
+    			  TPI.ITCPT_REG_SEQ
+				, TPI.PAYR_SEQ
+				, TPI.PAY_MPHN_ID
+				, TPMI.MPHN_NO
+				<![CDATA[
+				, CASE
+						WHEN TPMI.BRTH_YY IS NOT NULL THEN TO_CHAR(TO_DATE(TPMI.BRTH_YY || SUBSTR(TPMI.BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+						WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) > 16 THEN TO_CHAR(TO_DATE('19' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+						WHEN SUBSTR(TPMI.BRTH_YMD, 0, 2) <= 16 THEN TO_CHAR(TO_DATE('20' || SUBSTR(TPMI.BRTH_YMD, 0, 6), 'YYYYMMDD'), 'YYYY.MM.DD')
+                        ELSE NULL
+				END AS BRTH_YMD
+				]]>
+				, TPMI.PAYR_NM
+				, TPI.ITCPT_CLF_FLG
+				, TPI.PROC_CLF_FLG
+				, TPI.PROC_RSN
+				, TO_CHAR(TPI.REG_DT, 'YY.MM.DD') AS REG_DT
+				, TPI.REGR
+				, TO_CHAR(TPI.LAST_CHG_DT, 'YY.MM.DD') AS LAST_CHG_DT
+				, TPI.LAST_CHGR
+				, CASE
+						WHEN TPI.REG_DT = TPI.LAST_CHG_DT THEN 'N'
+						ELSE 'Y'
+				END AS UPDATE_YN
+				, TPI.ITCPT_REQR_CLF_FLG
+				, TPI.ITCPT_REQR_NM
+				, TPMI.COMMC_CLF
+				, TPI.ITCPT_RELS_RSN
+		FROM 	TH_PAY_ITCPT 			TPI
+			 	JOIN TB_PAY_MPHN_INFO	TPMI ON TPI.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+			 	LEFT JOIN TB_PAYR_INFO	TPRI ON TPI.PAYR_SEQ = TPRI.PAYR_SEQ 
+		WHERE 	TPI.ITCPT_REG_SEQ = #{itcptRegSeq}
+    </select>
+    
+    <update id="insertPayItcpt" parameterType="com.skplanet.impay.ccs.csm.model.PayItcptModel">
+    	<selectKey keyProperty="itcptRegSeq" resultType="long" order="BEFORE">
+    		SELECT PKG_SEQ.FN_GET_SEQ('TH_PAY_ITCPT') FROM DUAL
+    	</selectKey>
+    	INSERT	/* impay-ccs-web, csm/CnslMngMapper.xml, insertPayItcpt, 결제차단 등록, 2016-01-18 */
+    	INTO	TH_PAY_ITCPT (
+    			  ITCPT_REG_SEQ
+				, PAYR_SEQ
+				, PAY_MPHN_ID
+				, ITCPT_CLF_FLG
+				, PROC_CLF_FLG
+				, PROC_RSN
+				, REG_DT
+				, REGR
+				, LAST_CHG_DT
+				, LAST_CHGR
+				, ITCPT_REQR_CLF_FLG
+				, ITCPT_REQR_NM
+    	) VALUES (
+    			  #{itcptRegSeq}
+    			, #{payrSeq}
+    			, #{payMphnId}
+    			, #{itcptClfFlg}
+    			, #{procClfFlg}
+    			, #{procRsn}
+    			, SYSDATE
+    			, #{regr}
+    			, SYSDATE
+    			, #{regr}
+    			, #{itcptReqrClfFlg}
+    			, #{itcptReqrNm}
+    	)
+    </update>
+    
+    <update id="updatePayItcpt" parameterType="com.skplanet.impay.ccs.csm.model.PayItcptModel">
+    	UPDATE	/* impay-ccs-web, csm/CnslMngMapper.xml, updatePayItcpt, 결제차단 해제, 2016-01-18 */
+    			TH_PAY_ITCPT
+    	SET
+    		<if test='itcptClfFlg != null and !itcptClfFlg.equals("")'>
+    			ITCPT_CLF_FLG = #{itcptClfFlg},
+    		</if>
+    		<if test='procClfFlg != null and !procClfFlg.equals("")'>
+    			PROC_CLF_FLG = #{procClfFlg},
+    		</if>
+    		<if test='procRsn != null and !procRsn.equals("")'>
+    			PROC_RSN = #{procRsn},
+    		</if>
+    		<if test='itcptReqrClfFlg != null and !itcptReqrClfFlg.equals("")'>
+    			ITCPT_REQR_CLF_FLG = #{itcptReqrClfFlg},
+    		</if>
+    		<if test='itcptReqrNm != null and !itcptReqrNm.equals("")'>
+    			ITCPT_REQR_NM = #{itcptReqrNm},
+    		</if>
+    		<if test='itcptRelsRsn != null'>
+    			ITCPT_RELS_RSN = #{itcptRelsRsn},
+    		</if>
+    		LAST_CHG_DT = SYSDATE,
+    		LAST_CHGR = #{lastChgr}
+    	WHERE	ITCPT_REG_SEQ = #{itcptRegSeq}
+    </update>
+    
+    <update id="updateCnslCpTjur" parameterType="com.skplanet.impay.ccs.csm.model.CnslTjurModel">
+    	MERGE INTO	/* impay-ccs-web, csm/CnslMngMapper.xml, updateCnslCpTjur, 가맹점 이관, 2016-01-19 */
+    			TN_CNSL_CP_TJUR
+		USING 	DUAL
+		ON (
+		    	RCPT_NO = #{rcptNo}
+		)
+		WHEN MATCHED THEN
+			    UPDATE
+			    SET
+			    	ENTP_ID = #{entpId, jdbcType=VARCHAR},
+			    	CP_CD = #{cpCd, jdbcType=VARCHAR},
+			    	DEPT_CD = #{deptCd, jdbcType=VARCHAR},
+			    	TJUR_CLF_FLG = #{tjurClfFlg},
+			    	CNSL_TJUR_CTNT = #{cnslTjurCtnt, jdbcType=CLOB},
+			    	<if test='procTjurCtnt != null and !procTjurCtnt.equals("")'>
+			    	PROC_TJUR_CTNT = #{procTjurCtnt, jdbcType=CLOB},
+			    	</if>
+			    	TJUR_PROC_YN = #{tjurProcYn, jdbcType=VARCHAR},
+			    	<if test='tjurProcYn != null and !tjurProcYn.equals("") and tjurProcYn.equals("Y")'>
+			    	PROC_DT = SYSDATE,
+			    	</if>
+			    	TJUR_PROC = #{tjurProc}
+		WHEN NOT MATCHED THEN
+			    INSERT (
+			        RCPT_NO
+			        , ENTP_ID
+			        , CP_CD
+			        , DEPT_CD
+			        , TJUR_CLF_FLG
+			        , CNSL_TJUR_CTNT
+			        , PROC_TJUR_CTNT
+			        , TJUR_PROC_YN
+			        , REG_DT
+			        , TJUR_PROC
+			        , REGR
+			    ) VALUES (
+			        #{rcptNo}
+			        , #{entpId, jdbcType=VARCHAR}
+			        , #{cpCd, jdbcType=VARCHAR}
+			        , #{deptCd, jdbcType=VARCHAR}
+			        , #{tjurClfFlg}
+			        , #{cnslTjurCtnt, jdbcType=CLOB}
+			        , #{procTjurCtnt, jdbcType=CLOB}
+			        , #{tjurProcYn, jdbcType=VARCHAR}
+			        , SYSDATE
+			        , #{tjurProc}
+			        , #{regr}
+			    )
+		<selectKey keyProperty="regDt" resultType="string" order="AFTER">
+    		SELECT
+    				TO_CHAR(REG_DT, 'YY.MM.DD HH24:MI:SS') AS REG_DT
+    		FROM 	TN_CNSL_CP_TJUR
+    		WHERE 	RCPT_NO = #{rcptNo}
+    	</selectKey>
+    </update>
+    
+    <select id="selectSmsDocumentList" resultType="string">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectSmsDocumentList, 문서보관함 리스트 조회, 2016-01-25 */
+    			CHAR_CTNT
+    	FROM 	TN_CNSL_CHAR_STRG_DTL
+    	ORDER BY CHAR_STRG_NO
+    </select>
+    
+    <!-- 상담 시나리오 ResutMap -->
+    <resultMap id="ScrptResult" type="com.skplanet.impay.ccs.csm.model.CnslScrpt">
+		<id property="cnslClfUprCd" column="CNSL_CLF_UPR_CD"/>
+		<collection property="cnslScrptList" ofType="com.skplanet.impay.ccs.csm.model.CnslScrpt">
+			<result property="cnslClfLwrCd" column="CNSL_CLF_LWR_CD"/>
+			<result property="cnslCrspScrptCtnt" column="CNSL_CRSP_SCRPT_CTNT"/>
+			<result property="cnslCrspScrptQstn" column="CNSL_CRSP_SCRPT_QSTN"/>
+		</collection>
+	</resultMap>
+    
+    <select id="selectCnslCrspScrptAll" resultMap="ScrptResult">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslCrspScrptAll, 상담 시나리오 리스트 전체조회, 2016-03-11 */
+				TCCS.CNSL_CLF_UPR_CD
+				, TCCS.CNSL_CLF_LWR_CD
+				, TCCS.CNSL_CRSP_SCRPT_CTNT
+				, TCCS.CNSL_CRSP_SCRPT_QSTN
+    	FROM	TN_CNSL_CRSP_SCRPT	TCCS
+    	ORDER BY TCCS.CNSL_CLF_UPR_CD, TCCS.CNSL_CRSP_SCRPT_SEQ
+    </select>
+    
+    <select id="selectCnslCrspScrpt" parameterType="string" resultMap="ScrptResult">
+    	SELECT	/* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslCrspScrpt, 상담 시나리오 리스트 조회, 2016-02-12 */
+				TCCS.CNSL_CLF_UPR_CD
+				, TCCS.CNSL_CLF_LWR_CD
+				, TCCS.CNSL_CRSP_SCRPT_CTNT
+				, TCCS.CNSL_CRSP_SCRPT_QSTN
+    	FROM	TN_CNSL_CRSP_SCRPT	TCCS
+    	WHERE	TCCS.CNSL_CRSP_SCRPT_CTNT LIKE '%' || #{srchText} || '%'
+    	OR TCCS.CNSL_CRSP_SCRPT_QSTN LIKE '%' || #{srchText} || '%'
+    	ORDER BY TCCS.CNSL_CLF_UPR_CD, TCCS.CNSL_CRSP_SCRPT_SEQ
+    </select>
+    
+    <update id="insertCnslCpTjurHist" parameterType="com.skplanet.impay.ccs.csm.model.CnslTjurModel">
+    	<selectKey keyProperty="seq" resultType="int" order="BEFORE">
+    		SELECT MAX(SEQ) + 1 FROM (
+    			SELECT SEQ FROM TH_CNSL_CP_TJUR WHERE RCPT_NO = #{rcptNo}
+    			UNION ALL
+    			SELECT 0 SEQ FROM DUAL
+    		)
+    	</selectKey>
+    	INSERT /* impay-ccs-web, csm/CnslMngMapper.xml, insertCnslCpTjurHist, 이관처리 이력 등록, 2016-05-16 */
+    	INTO TH_CNSL_CP_TJUR(
+    		  RCPT_NO
+			, SEQ
+			, ENTP_ID
+			, CP_CD
+			, DEPT_CD
+			, TJUR_CLF_FLG
+			, CNSL_TJUR_CTNT
+			, PROC_TJUR_CTNT
+			, TJUR_PROC_YN
+			<if test='tjurProcYn != null and tjurProcYn.equals("Y")'>
+			, PROC_DT
+			</if>
+			, TJUR_PROC
+			, REG_DT
+			, REGR
+    	) VALUES (
+    		  #{rcptNo}
+    		, #{seq}
+	        , #{entpId, jdbcType=VARCHAR}
+	        , #{cpCd, jdbcType=VARCHAR}
+	        , #{deptCd, jdbcType=VARCHAR}
+	        , #{tjurClfFlg}
+	        , #{cnslTjurCtnt, jdbcType=CLOB}
+	        , #{procTjurCtnt, jdbcType=CLOB}
+	        , #{tjurProcYn, jdbcType=VARCHAR}
+	        <if test='tjurProcYn != null and tjurProcYn.equals("Y")'>
+	        , SYSDATE
+	        </if>
+	        , #{tjurProc}
+	        , SYSDATE
+	        , #{regr}
+    	)
+    </update>
+    
+    <select id="selectCnslCpTjurHist" parameterType="string" resultType="com.skplanet.impay.ccs.csm.model.CnslTjurModel">
+    	SELECT /* impay-ccs-web, csm/CnslMngMapper.xml, selectCnslCpTjurHist, 이관처리 이력 조회, 2016-05-16 */
+    		  RCPT_NO
+			, SEQ
+			, ENTP_ID
+			, CP_CD
+			, DEPT_CD
+			, TJUR_CLF_FLG
+			, CNSL_TJUR_CTNT
+			, PROC_TJUR_CTNT
+			, TJUR_PROC_YN
+			, TO_CHAR(PROC_DT, 'YYYY.MM.DD HH24:MI:SS') AS PROC_DT
+			, (
+				SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCCT.TJUR_PROC
+				UNION ALL
+				SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCCT.TJUR_PROC
+			) AS TJUR_PROC
+			, TO_CHAR(REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT
+			, (
+				SELECT USER_ID FROM TN_USER WHERE USER_SEQ = TCCT.REGR
+				UNION ALL
+				SELECT CP_ADM_ID AS USER_ID FROM TN_CP_ADM WHERE CP_ADM_SEQ = TCCT.REGR
+			) AS REGR
+    	FROM TH_CNSL_CP_TJUR TCCT
+    	WHERE RCPT_NO = #{rcptNo}
+    	AND TJUR_CLF_FLG = 'C'
+    	ORDER BY SEQ DESC
+    </select>
+    
+</mapper>

@@ -1,0 +1,77 @@
+<configuration>
+	<property name="LOG_PATTERN" value="[%d{yyyy-MM-dd HH:mm:ss.SSS}|%-5level|%X{txId}|%X{hostName}|%X{instanceName}|%logger{36}]%msg%n"/>
+	<property name="LOG_ROOT" value="/app/log/tomcat"/>
+	<property name="LOG_PATH" value="${LOG_ROOT}/app"/>
+	<property name="IDMS_PATH" value="${LOG_ROOT}/if/idms"/>
+	<property name="SYS_NAME" value="CCS"/>
+	
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+    
+    <appender name="FILE_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    	<file>${LOG_PATH}/APP_${SYS_NAME}.log</file>
+    	<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    		<fileNamePattern>${LOG_PATH}/APP_${SYS_NAME}_%d{yyyyMMdd}_%i.log</fileNamePattern>
+    		<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+    			<maxFileSize>500MB</maxFileSize>
+    		</timeBasedFileNamingAndTriggeringPolicy>
+    	</rollingPolicy>
+    	<encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+    
+     <appender name="IDMS_CUS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    	<file>${IDMS_PATH}/IMPAY-CCS_CUS.log</file>
+    	<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    		<fileNamePattern>${IDMS_PATH}/IMPAY-CCS_CUS_%d{yyyyMMdd}.log</fileNamePattern>
+    		<maxHistory>10</maxHistory>
+    	</rollingPolicy>
+    	<encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="IDMS_LOGIN" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    	<file>${IDMS_PATH}/IMPAY_LOGIN.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${IDMS_PATH}/IMPAY_LOGIN_%d{yyyyMMdd}.log</fileNamePattern>
+            <maxHistory>10</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <appender name="IDMS_ID" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    	<file>${IDMS_PATH}/IMPAY_ID.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${IDMS_PATH}/IMPAY_ID_%d{yyyyMMdd}.log</fileNamePattern>
+            <maxHistory>10</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.skplanet.impay" level="DEBUG"></logger>
+    <logger name="com.skplanet.plandasj" level="INFO"></logger>
+    <logger name="org.apache.zookeeper" level="INFO"></logger>
+    <logger name="org.springframework" level="INFO"></logger>
+    <logger name="com.skplanet.impay.ccs.common.log.idms.service.IdmsUserAccountLogService" level="INFO" additivity="false">
+        <appender-ref ref="IDMS_ID" />
+    </logger>
+    <logger name="com.skplanet.impay.ccs.common.log.idms.service.IdmsCustomerLogService" level="INFO" additivity="false">
+    	<appender-ref ref="IDMS_CUS"/>
+    </logger>
+    <logger name="com.skplanet.impay.ccs.common.log.idms.service.IdmsLoginLogService" level="INFO" additivity="false">
+        <appender-ref ref="IDMS_LOGIN" />
+    </logger>
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE_LOG" />
+    </root>
+</configuration>

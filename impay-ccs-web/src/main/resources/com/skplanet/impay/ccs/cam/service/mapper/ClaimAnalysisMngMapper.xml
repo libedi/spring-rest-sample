@@ -1,0 +1,1178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.impay.ccs.cam.service.mapper.ClaimAnalysisMngMapper">
+	<!-- TAB-1 -->
+	<select id="selectClmAnslCaseList" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsCase" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsCase">
+		<choose>
+			<when test='mphnNo != null and !mphnNo.equals("")'>
+			/* 검색 조건으로 휴대폰 번호만 들어온 경우 */
+			/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslList, TAB-1 건별 목록 조회, 2016-06-15 (쿼리 튜닝) */
+			SELECT
+	       			/*+   LEADING(PAGE_TABLE)   USE_NL(TCPS) USE_NL(TCCT)  */
+	       			PAGE_TABLE.*,
+	       			(
+	       				SELECT  MAX(TPRM.GODS_NM) 
+	            		FROM  	TN_CNSL_PAY_REL   TCPR,
+	                  			TP_PAY_RSLT_MST   TPRM     
+	          			WHERE 	PAGE_TABLE.RCPT_NO  = TCPR.RCPT_NO 
+	            				AND TCPR.TRD_NO         = TPRM.TRD_NO  
+	         		) GODS_NM,  
+	       			TCCT.TJUR_CLF_FLG,                      /* 이관 구분 */
+	       			CASE
+						WHEN TCCT.TJUR_CLF_FLG='C'
+		            THEN 'C'
+		            	ELSE TCCT.DEPT_CD
+	         		END TJUR_CLF_FLG_NM                     /* 이관 구분명 */         
+	       	FROM(
+	       			SELECT	ROWNUM AS IDX,
+	       					A.*
+	       			FROM(
+	       					SELECT	/*+ LEADING(TPMI  TCD)   USE_NL(TCD) */
+	       							COUNT(*) OVER () TOTAL_CNT, 
+									TCD.RCPT_NO,                     							/* 접수번호 */
+									TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,     /* 접수일자 */
+									TCD.RCPT_MTHD_CD,     		/* 접수 유형 */
+									TCD.REGR,             		/* 접수자 */
+									TCD.CUST_TYP_FLG,     		/* 고객유형 */
+									TCD.PAY_CNDI_CD,      		/* 결제 조건 */
+									TPMI.MPHN_NO,         		/* 휴대폰 번호 */
+									TCD.COMMC_CLF,        		/* 이통사 */
+									TCD.CNSL_TYP_CD,      		/* 상담 유형 */
+									TCD.CNSL_CLF_UPR_CD,  		/* 상담 구분(상위)*/
+									TCD.CNSL_CLF_LWR_CD,  		/* 상담 구분(하위)*/
+									TCD.PROC_YN,           		/* 처리여부 */
+									TCD.CNSL_CTNT,         		/* 상담 내용 */
+									TCD.PROC_CTNT,         		/* 처리 내용 */
+									TCD.CNSL_EVNT_CD,      		/* 이벤트 */
+									TCPS.PAY_SVC_NM AS CP_NM    /* 가맹점명 */
+							FROM	TN_CNSL_DTL			TCD,
+									TB_PAY_MPHN_INFO	TPMI,
+									TB_CP_PAY_SVC     	TCPS      
+							WHERE	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */
+									AND TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID  
+									AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{mphnNo})
+									AND TCD.CP_CD       = TCPS.CP_CD(+)  
+									<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+									AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+									</if>
+									<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+									AND TCD.PAY_CNDI_CD = #{payCndiCd}
+									</if>
+									<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+									AND TCD.REGR = #{regr}										 
+									</if>
+									<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+									AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+									</if>
+									<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+									AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+									</if>
+									<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+									AND TCD.PROC_YN = #{procYn}
+									</if>
+									<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+									AND TCD.COMMC_CLF = #{commcClf}
+									</if>
+									<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+									AND TCD.CP_CD = #{cpCd}
+									</if>
+									<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+									AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+									</if>
+									<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+									AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+									</if>
+							ORDER BY REG_DT DESC
+	       				)A
+	       			<![CDATA[ 
+	 				WHERE ROWNUM <= #{pageParam.endRow}
+	 				]]>
+	       		)PAGE_TABLE,
+	       		TN_CNSL_CP_TJUR		TCCT
+	       		<![CDATA[
+	       	WHERE 	PAGE_TABLE.IDX  >=  #{pageParam.startRow}
+	       		  	AND PAGE_TABLE.RCPT_NO = TCCT.RCPT_NO(+)
+	       		]]>	
+			</when>
+			<when test='(mphnNo == null or mphnNo.equals("")) and ((cpCd != null and !cpCd.equals("")) or (cpNm != null and !cpNm.equals("")))'>
+			/* 가맹점 코드 또는 가맹점 명 둘중 하나 이상 입력 된 경우 */
+			/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslList, TAB-1 건별 목록 조회, 2016-06-15 (쿼리 튜닝) */
+			SELECT	
+					/*+  LEADING(A TCD)  USE_NL(TCD)  USE_NL(TPMI)  USE_NL(TCCT) */  
+					TOTAL_CNT, 			/* 총 카운트 */
+					IDX, 				/* INDEX */
+					TCD.RCPT_NO,    	/* 접수번호 */
+					TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,  /* 접수일자 */
+					TCD.RCPT_MTHD_CD,   /* 접수 유형 */
+					TCD.REGR,           /* 접수자 */
+					TCD.CUST_TYP_FLG,   /* 고객유형 */
+					TCD.PAY_CNDI_CD,    /* 결제 조건 */
+					TPMI.MPHN_NO,       /* 휴대폰 번호 */
+					A.CP_NM,           
+					(SELECT  MAX(TPRM.GODS_NM) GODS_NM
+					   FROM  TN_CNSL_PAY_REL   TCPR,    
+					         TP_PAY_RSLT_MST   TPRM     
+					 WHERE TCD.RCPT_NO     = TCPR.RCPT_NO(+)
+					   AND TCPR.TRD_NO     = TPRM.TRD_NO(+) 
+					) GODS_NM,          
+					TCD.COMMC_CLF,                  /* 이통사 */
+					TCD.CNSL_TYP_CD,                /* 상담 유형 */
+					TCD.CNSL_CLF_UPR_CD,            /* 상담 구분(상위)*/
+					TCD.CNSL_CLF_LWR_CD,            /* 상담 구분(하위)*/
+					TCD.PROC_YN,                    /* 처리여부 */                
+					TCCT.TJUR_CLF_FLG,              /* 이관 구분 */
+					CASE
+					    WHEN TCCT.TJUR_CLF_FLG='C'
+					    THEN 'C'
+					    ELSE TCCT.DEPT_CD
+					END TJUR_CLF_FLG_NM,            /* 이관 구분명 */
+					TCD.CNSL_CTNT,                  /* 상담 내용 */
+					TCD.PROC_CTNT,                  /* 처리 내용 */
+					TCD.CNSL_EVNT_CD                /* 이벤트 */       
+			FROM(
+					SELECT
+							CP_NM, 
+							TCD_ROWID, 
+							TOTAL_CNT, 
+							ROWNUM AS IDX
+					FROM(
+							SELECT	/*+ LEADING(TCPS)  USE_HASH(TCD)  INDEX_DESC(TCD IDX_TN_CNSL_DTL_03)   NO_SWAP_JOIN_INPUTS(TCD)  */  /* 인덱스를 역순으로 읽기 때문에 ORDER BY를 사용하지 않는다. */ 
+	                                TCPS.PAY_SVC_NM AS CP_NM,   
+	                                TCD.ROWID TCD_ROWID,  COUNT(*) OVER () TOTAL_CNT  
+	                        FROM	TB_CP_PAY_SVC     TCPS,   
+	                                TN_CNSL_DTL       TCD
+	                        WHERE 	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */ 
+	                            	AND TCD.CP_CD  = TCPS.CP_CD 
+	                             	<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+									AND TCD.CP_CD = #{cpCd}
+									</if>
+									<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+									AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+									</if>
+									<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+									AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+									</if>
+									<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+									AND TCD.PAY_CNDI_CD = #{payCndiCd}
+									</if>
+									<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+									AND TCD.REGR = #{regr}										 
+									</if>
+									<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+									AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+									</if>
+									<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+									AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+									</if>
+									<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+									AND TCD.PROC_YN = #{procYn}
+									</if>
+									<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+									AND TCD.COMMC_CLF = #{commcClf}
+									</if>
+									<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+									AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+									</if>
+						)TCD_IDX
+					<![CDATA[ 
+					WHERE ROWNUM <= #{pageParam.endRow}
+					]]>
+				)A,
+				TN_CNSL_DTL			TCD,
+				TB_PAY_MPHN_INFO	TPMI,
+				TN_CNSL_CP_TJUR		TCCT
+			WHERE	<![CDATA[
+					A.IDX >= #{pageParam.startRow} 
+					]]>
+					AND A.TCD_ROWID = TCD.ROWID
+					AND TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID(+)
+					AND TCD.RCPT_NO		= TCCT.RCPT_NO(+)
+			</when>
+			<when test='(cpCd == null or cpCd.equals("")) and (cpNm == null or cpNm.equals("")) and (mphnNo == null or mphnNo.equals(""))'>
+			/* 입력란에 아무것도 입력 되지 않은 조건 */
+			/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslList, TAB-1 건별 목록 조회, 2016-06-15 (쿼리 튜닝) */
+			SELECT
+					/*+   LEADING(A TCD)  USE_NL(TCD) USE_NL(TPMI)  USE_NL(TCPS) USE_NL(TCCT) */  
+					TOTAL_CNT,   
+					IDX,        
+					TCD.RCPT_NO,          		/* 접수번호 */
+					TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,                     /* 접수일자 */
+					TCD.RCPT_MTHD_CD,        	/* 접수 유형 */
+					TCD.REGR,                   /* 접수자 */
+					TCD.CUST_TYP_FLG,           /* 고객유형 */
+					TCD.PAY_CNDI_CD,            /* 결제 조건 */
+					TPMI.MPHN_NO,               /* 휴대폰 번호 */
+					TCPS.PAY_SVC_NM AS CP_NM,   /* 가맹점명 */
+					(SELECT  MAX(TPRM.GODS_NM) GODS_NM
+					   FROM  TN_CNSL_PAY_REL   TCPR,    
+					         TP_PAY_RSLT_MST   TPRM     
+					 WHERE TCD.RCPT_NO     = TCPR.RCPT_NO(+)
+					   AND TCPR.TRD_NO     = TPRM.TRD_NO(+) 
+					) GODS_NM,          
+					TCD.COMMC_CLF,              /* 이통사 */
+					TCD.CNSL_TYP_CD,            /* 상담 유형 */
+					TCD.CNSL_CLF_UPR_CD,        /* 상담 구분(상위)*/
+					TCD.CNSL_CLF_LWR_CD,        /* 상담 구분(하위)*/
+					TCD.PROC_YN,                /* 처리여부 */                
+					TCCT.TJUR_CLF_FLG,          /* 이관 구분 */
+					CASE
+					    WHEN TCCT.TJUR_CLF_FLG='C'
+					    THEN 'C'
+					    ELSE TCCT.DEPT_CD
+					END TJUR_CLF_FLG_NM,        /* 이관 구분명 */
+					TCD.CNSL_CTNT,              /* 상담 내용 */
+					TCD.PROC_CTNT,              /* 처리 내용 */
+					TCD.CNSL_EVNT_CD            /* 이벤트 */
+			FROM(
+					SELECT	
+							TCD_ROWID, 
+							TOTAL_CNT, 
+							ROWNUM AS IDX 
+	               FROM (
+	                     	SELECT 
+	                     			/*+ INDEX_DESC(TCD IDX_TN_CNSL_DTL_03)  */   /*인덱스를 역순으로 읽기 때문에 ORDER BY를 사용하지 않는다.*/ 
+	                             	ROWID TCD_ROWID, COUNT(*) OVER () TOTAL_CNT
+	                      	FROM 	TN_CNSL_DTL  TCD
+	                       	WHERE 	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */ 
+	                       			<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+									AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+									</if>
+									<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+									AND TCD.PAY_CNDI_CD = #{payCndiCd}
+									</if>
+									<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+									AND TCD.REGR = #{regr}										 
+									</if>
+									<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+									AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+									</if>
+									<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+									AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+									</if>
+									<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+									AND TCD.PROC_YN = #{procYn}
+									</if>
+									<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+									AND TCD.COMMC_CLF = #{commcClf}
+									</if>
+									<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+									AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+									</if>
+						)TCD_IDX
+					<![CDATA[ 
+					WHERE ROWNUM <= #{pageParam.endRow}
+					]]>
+				)A,
+				TN_CNSL_DTL			TCD,
+				TB_PAY_MPHN_INFO	TPMI,
+				TB_CP_PAY_SVC		TCPS,
+				TN_CNSL_CP_TJUR		TCCT
+			WHERE	<![CDATA[
+					A.IDX >= #{pageParam.startRow} 
+					]]>
+					AND A.TCD_ROWID = TCD.ROWID
+			        AND TCD.PAY_MPHN_ID   = TPMI.PAY_MPHN_ID(+)
+			        AND TCD.CP_CD         = TCPS.CP_CD(+)   
+			        AND TCD.RCPT_NO       = TCCT.RCPT_NO(+)     
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectClmAnlsCaseChart" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsCase" resultType="com.skplanet.impay.ccs.cam.model.ChartModel">
+		<![CDATA[
+		SELECT	/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnlsCaseChart, TAB-1 차트, 2016-01-21*/
+		        A.CHART_DATES,
+		        NVL(B.TKTK01CNT,0) AS TKTK01,
+		        NVL(B.TKTK02CNT,0) AS TKTK02,
+		        NVL(B.TKTK03CNT,0) AS TKTK03,
+		        NVL(B.TKTK04CNT,0) AS TKTK04
+		FROM
+		      (SELECT TO_CHAR(DAYS + (LEVEL - 1), 'YYYY.MM.DD') AS CHART_DATES
+		           FROM ( SELECT TRUNC(TO_DATE( #{stDate},'YYYY.MM.DD'),'DD') AS DAYS FROM DUAL)
+		        CONNECT BY LEVEL <= (TRUNC(TO_DATE(#{endDate},'YYYY.MM.DD'),'DD') - TRUNC(TO_DATE(#{stDate},'YYYY.MM.DD'),'DD')) + 1
+		      ) A
+		      LEFT OUTER JOIN
+		      (SELECT TO_CHAR(TCD.REG_DT,'YYYY.MM.DD') AS REG_DT,
+		          SUM(CASE WHEN TCD.CNSL_TYP_CD='TKTK01' THEN 1 ELSE 0 END ) TKTK01CNT,
+		          SUM(CASE WHEN TCD.CNSL_TYP_CD='TKTK02' THEN 1 ELSE 0 END ) TKTK02CNT,
+		          SUM(CASE WHEN TCD.CNSL_TYP_CD='TKTK03' THEN 1 ELSE 0 END ) TKTK03CNT,
+		          SUM(CASE WHEN TCD.CNSL_TYP_CD='TKTK04' THEN 1 ELSE 0 END ) TKTK04CNT
+		      FROM 	TN_CNSL_DTL 				TCD
+		      WHERE TCD.REG_DT BETWEEN TO_DATE(#{stDate},'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1
+		      GROUP BY TO_CHAR(TCD.REG_DT,'YYYY.MM.DD') )B ON B.REG_DT=A.CHART_DATES
+		ORDER BY A.CHART_DATES
+		]]>
+	</select>
+	
+	<select id="selectClmAnslCaseListExcelDown" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsCase" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsCase">
+		<choose>
+			<when test='mphnNo != null and !mphnNo.equals("")'>
+				/* 검색 조건으로 휴대폰 번호만 들어온 경우 */
+				SELECT
+						/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslCaseListExcelDown, TAB-1 건별 엑셀 다운로드, 2016-06-15 (쿼리 튜닝) */
+		       			/*+   LEADING(PAGE_TABLE)   USE_NL(TCPS) USE_NL(TCCT)  */
+		       			PAGE_TABLE.*,
+		       			(
+		       				SELECT  MAX(TPRM.GODS_NM) 
+		            		FROM  	TN_CNSL_PAY_REL   TCPR,
+		                  			TP_PAY_RSLT_MST   TPRM     
+		          			WHERE 	PAGE_TABLE.RCPT_NO  = TCPR.RCPT_NO 
+		            				AND TCPR.TRD_NO         = TPRM.TRD_NO  
+		         		) GODS_NM,  
+		       			TCCT.TJUR_CLF_FLG,                      /* 이관 구분 */
+		       			CASE
+							WHEN TCCT.TJUR_CLF_FLG='C'
+			            THEN 'C'
+			            	ELSE TCCT.DEPT_CD
+		         		END TJUR_CLF_FLG_NM                     /* 이관 구분명 */         
+		       	FROM(
+		       			SELECT	ROWNUM AS IDX,
+		       					A.*
+		       			FROM(
+		       					SELECT	/*+ LEADING(TPMI  TCD)   USE_NL(TCD) */
+		       							COUNT(*) OVER () TOTAL_CNT, 
+										TCD.RCPT_NO,                     							/* 접수번호 */
+										TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,     /* 접수일자 */
+										TCD.RCPT_MTHD_CD,      		/* 접수 유형 */
+										TCD.REGR,              		/* 접수자 */
+										TCD.CUST_TYP_FLG,      		/* 고객유형 */
+										TCD.PAY_CNDI_CD,       		/* 결제 조건 */
+										TPMI.MPHN_NO,          		/* 휴대폰 번호 */
+										TCD.COMMC_CLF,         		/* 이통사 */
+										TCD.CNSL_TYP_CD,       		/* 상담 유형 */
+										TCD.CNSL_CLF_UPR_CD,   		/* 상담 구분(상위)*/
+										TCD.CNSL_CLF_LWR_CD,   		/* 상담 구분(하위)*/
+										TCD.PROC_YN,           		/* 처리여부 */
+										TCD.CNSL_CTNT,         		/* 상담 내용 */
+										TCD.PROC_CTNT,         		/* 처리 내용 */
+										TCD.CNSL_EVNT_CD,      		/* 이벤트 */
+										TCPS.PAY_SVC_NM AS CP_NM  	/* 가맹점명 */										
+								FROM	TN_CNSL_DTL			TCD,
+										TB_PAY_MPHN_INFO	TPMI,
+										TB_CP_PAY_SVC     	TCPS    
+								WHERE	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */
+										AND TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID  
+										AND TPMI.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{mphnNo})
+										AND TCD.CP_CD       = TCPS.CP_CD(+)
+										<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+										AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+										</if>
+										<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+										AND TCD.PAY_CNDI_CD = #{payCndiCd}
+										</if>
+										<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+										AND TCD.REGR = #{regr}										 
+										</if>
+										<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+										AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+										</if>
+										<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+										AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+										</if>
+										<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+										AND TCD.PROC_YN = #{procYn}
+										</if>
+										<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+										AND TCD.COMMC_CLF = #{commcClf}
+										</if>
+										<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+										AND TCD.CP_CD = #{cpCd}
+										</if>
+										<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+										AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+										</if>
+										<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+										AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+										</if>
+								ORDER BY REG_DT DESC
+		       				)A
+		       		)PAGE_TABLE,
+		       		TN_CNSL_CP_TJUR		TCCT
+		       		<![CDATA[
+		       	WHERE 	1=1
+		       		  	AND PAGE_TABLE.RCPT_NO = TCCT.RCPT_NO(+)
+		       		]]>	
+				</when>
+				<when test='(mphnNo == null or mphnNo.equals("")) and ((cpCd != null and !cpCd.equals("")) or (cpNm != null and !cpNm.equals("")))'>
+				/* 가맹점 코드 또는 가맹점 명 둘중 하나 이상 입력 된 경우 */
+				/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslCaseListExcelDown, TAB-1 건별 엑셀 다운로드, 2016-06-15 (쿼리 튜닝) */
+				SELECT	
+						/*+  LEADING(A TCD)  USE_NL(TCD)  USE_NL(TPMI)  USE_NL(TCCT) */  
+						TOTAL_CNT, 			/* 총 카운트 */
+						IDX, 				/* INDEX */
+						TCD.RCPT_NO,    	/* 접수번호 */
+						TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,  /* 접수일자 */
+						TCD.RCPT_MTHD_CD,   /* 접수 유형 */
+						TCD.REGR,           /* 접수자 */
+						TCD.CUST_TYP_FLG,   /* 고객유형 */
+						TCD.PAY_CNDI_CD,    /* 결제 조건 */
+						TPMI.MPHN_NO,       /* 휴대폰 번호 */
+						A.CP_NM,           
+						(SELECT  MAX(TPRM.GODS_NM) GODS_NM
+						   FROM  TN_CNSL_PAY_REL   TCPR,    
+						         TP_PAY_RSLT_MST   TPRM     
+						 WHERE TCD.RCPT_NO     = TCPR.RCPT_NO(+)
+						   AND TCPR.TRD_NO     = TPRM.TRD_NO(+) 
+						) GODS_NM,          
+						TCD.COMMC_CLF,                  /* 이통사 */
+						TCD.CNSL_TYP_CD,                /* 상담 유형 */
+						TCD.CNSL_CLF_UPR_CD,            /* 상담 구분(상위)*/
+						TCD.CNSL_CLF_LWR_CD,            /* 상담 구분(하위)*/
+						TCD.PROC_YN,                    /* 처리여부 */                
+						TCCT.TJUR_CLF_FLG,              /* 이관 구분 */
+						CASE
+						    WHEN TCCT.TJUR_CLF_FLG='C'
+						    THEN 'C'
+						    ELSE TCCT.DEPT_CD
+						END TJUR_CLF_FLG_NM,            /* 이관 구분명 */
+						TCD.CNSL_CTNT,                  /* 상담 내용 */
+						TCD.PROC_CTNT,                  /* 처리 내용 */
+						TCD.CNSL_EVNT_CD                /* 이벤트 */       
+				FROM(
+						SELECT
+								CP_NM, 
+								TCD_ROWID, 
+								TOTAL_CNT, 
+								ROWNUM AS IDX
+						FROM(
+								SELECT	/*+ LEADING(TCPS)  USE_HASH(TCD)  INDEX_DESC(TCD IDX_TN_CNSL_DTL_03)   NO_SWAP_JOIN_INPUTS(TCD)  */  /* 인덱스를 역순으로 읽기 때문에 ORDER BY를 사용하지 않는다. */ 
+		                                TCPS.PAY_SVC_NM AS CP_NM,   
+		                                TCD.ROWID TCD_ROWID,  COUNT(*) OVER () TOTAL_CNT  
+		                        FROM	TB_CP_PAY_SVC     TCPS,   
+		                                TN_CNSL_DTL       TCD
+		                        WHERE 	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */ 
+		                            	AND TCD.CP_CD  = TCPS.CP_CD 
+		                             	<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+										AND TCD.CP_CD = #{cpCd}
+										</if>
+										<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+										AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+										</if>
+										<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+										AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+										</if>
+										<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+										AND TCD.PAY_CNDI_CD = #{payCndiCd}
+										</if>
+										<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+										AND TCD.REGR = #{regr}										 
+										</if>
+										<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+										AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+										</if>
+										<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+										AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+										</if>
+										<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+										AND TCD.PROC_YN = #{procYn}
+										</if>
+										<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+										AND TCD.COMMC_CLF = #{commcClf}
+										</if>
+										<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+										AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+										</if>
+							)TCD_IDX
+					)A,
+					TN_CNSL_DTL			TCD,
+					TB_PAY_MPHN_INFO	TPMI,
+					TN_CNSL_CP_TJUR		TCCT
+				WHERE	1=1
+						AND A.TCD_ROWID = TCD.ROWID
+						AND TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID(+)
+						AND TCD.RCPT_NO		= TCCT.RCPT_NO(+)
+				</when>
+				<when test='(cpCd == null or cpCd.equals("")) and (cpNm == null or cpNm.equals("")) and (mphnNo == null or mphnNo.equals(""))'>
+				/* 입력란에 아무것도 입력 되지 않은 조건 */
+				/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslCaseListExcelDown, TAB-1 건별 엑셀 다운로드, 2016-06-15 (쿼리 튜닝) */
+				SELECT
+						/*+   LEADING(A TCD)  USE_NL(TCD) USE_NL(TPMI)  USE_NL(TCPS) USE_NL(TCCT) */  
+						TOTAL_CNT,   
+						IDX,        
+						TCD.RCPT_NO,          		/* 접수번호 */
+						TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD HH24:MI:SS') AS REG_DT,                     /* 접수일자 */
+						TCD.RCPT_MTHD_CD,        	/* 접수 유형 */
+						TCD.REGR,                   /* 접수자 */
+						TCD.CUST_TYP_FLG,           /* 고객유형 */
+						TCD.PAY_CNDI_CD,            /* 결제 조건 */
+						TPMI.MPHN_NO,               /* 휴대폰 번호 */
+						TCPS.PAY_SVC_NM AS CP_NM,   /* 가맹점명 */
+						(SELECT  MAX(TPRM.GODS_NM) GODS_NM
+						   FROM  TN_CNSL_PAY_REL   TCPR,    
+						         TP_PAY_RSLT_MST   TPRM     
+						 WHERE TCD.RCPT_NO     = TCPR.RCPT_NO(+)
+						   AND TCPR.TRD_NO     = TPRM.TRD_NO(+) 
+						) GODS_NM,          
+						TCD.COMMC_CLF,              /* 이통사 */
+						TCD.CNSL_TYP_CD,            /* 상담 유형 */
+						TCD.CNSL_CLF_UPR_CD,        /* 상담 구분(상위)*/
+						TCD.CNSL_CLF_LWR_CD,        /* 상담 구분(하위)*/
+						TCD.PROC_YN,                /* 처리여부 */                
+						TCCT.TJUR_CLF_FLG,          /* 이관 구분 */
+						CASE
+						    WHEN TCCT.TJUR_CLF_FLG='C'
+						    THEN 'C'
+						    ELSE TCCT.DEPT_CD
+						END TJUR_CLF_FLG_NM,        /* 이관 구분명 */
+						TCD.CNSL_CTNT,              /* 상담 내용 */
+						TCD.PROC_CTNT,              /* 처리 내용 */
+						TCD.CNSL_EVNT_CD            /* 이벤트 */
+				FROM(
+						SELECT	
+								TCD_ROWID, 
+								TOTAL_CNT, 
+								ROWNUM AS IDX 
+		               FROM (
+		                     	SELECT 
+		                     			/*+ INDEX_DESC(TCD IDX_TN_CNSL_DTL_03)  */   /*인덱스를 역순으로 읽기 때문에 ORDER BY를 사용하지 않는다.*/ 
+		                             	ROWID TCD_ROWID, COUNT(*) OVER () TOTAL_CNT
+		                      	FROM 	TN_CNSL_DTL  TCD
+		                       	WHERE 	TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1    /* 접수일자 */ 
+		                       			<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+										AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+										</if>
+										<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+										AND TCD.PAY_CNDI_CD = #{payCndiCd}
+										</if>
+										<if test='regr != null and !regr.equals("")'>				/* 접수자 */
+										AND TCD.REGR = #{regr}										 
+										</if>
+										<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+										AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+										</if>
+										<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+										AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+										</if>
+										<if test='procYn != null and !procYn.equals("")'>		/* 처리여부 */
+										AND TCD.PROC_YN = #{procYn}
+										</if>
+										<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+										AND TCD.COMMC_CLF = #{commcClf}
+										</if>
+										<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+										AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+										</if>
+							)TCD_IDX
+					)A,
+					TN_CNSL_DTL			TCD,
+					TB_PAY_MPHN_INFO	TPMI,
+					TB_CP_PAY_SVC		TCPS,
+					TN_CNSL_CP_TJUR		TCCT
+				WHERE	1=1
+						AND A.TCD_ROWID = TCD.ROWID
+				        AND TCD.PAY_MPHN_ID   = TPMI.PAY_MPHN_ID(+)
+				        AND TCD.CP_CD         = TCPS.CP_CD(+)   
+				        AND TCD.RCPT_NO       = TCCT.RCPT_NO(+)     
+			</when>
+		</choose>
+	</select>
+	
+	<!-- TAB-2 -->
+	<select id="selectClmAnslTypeCount" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsType" resultType="int">
+	SELECT 	/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTypeCount, TAB-2 유형별 목록 카운트, 2016-01-25 */
+			COUNT(1)
+	FROM
+		(
+		SELECT	
+		      	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD') REG_DT,
+		       	TCD.CNSL_TYP_CD,
+		       	TCD.CNSL_EVNT_CD,
+		       	TCD.CNSL_CLF_UPR_CD,
+		       	TCD.CNSL_CLF_LWR_CD,
+		       	TCD.RCPT_MTHD_CD,
+		       	TCD.PAY_CNDI_CD,
+		       	TCD.COMMC_CLF
+		FROM 	TN_CNSL_DTL TCD
+		       	JOIN TB_PAY_MPHN_INFO 			TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+		       	LEFT OUTER JOIN TB_CP_PAY_SVC 	TCPS ON TCPS.CP_CD = TCD.CP_CD
+		WHERE	1 = 1
+				<if test='stDate != null and !stDate.equals("") and endDate != null and !endDate.equals("")'>
+				AND TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1	
+				</if>
+				<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+				AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+				</if>
+				<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+				AND TCD.PAY_CNDI_CD = #{payCndiCd}
+				</if>
+				<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+				AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+				</if>
+				<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+				AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+				</if>
+				<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+				AND TCD.COMMC_CLF = #{commcClf}
+				</if>
+				<if test='mphnNo != null and !mphnNo.equals("")'>		/* 휴대폰 번호 */
+				AND TPMI.MPHN_NO LIKE '%'||#{mphnNo}||'%'
+				</if>
+				<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+				AND TCD.CP_CD LIKE '%'||#{cpCd}||'%'
+				</if>
+				<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+				AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+				</if>
+				<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+				AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+				</if>
+		GROUP BY	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD'),
+					TCD.CNSL_TYP_CD,
+					TCD.CNSL_EVNT_CD,
+					TCD.CNSL_CLF_UPR_CD,
+					TCD.CNSL_CLF_LWR_CD,
+					TCD.RCPT_MTHD_CD,
+					TCD.PAY_CNDI_CD,
+					TCD.COMMC_CLF
+		ORDER BY REG_DT DESC	
+		)			
+	</select>
+	
+	<select id="selectClmAnslTypeList" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsType" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsType">
+		SELECT	/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTypeList, TAB-2 유형별 목록 조회, 2016-01-25 */
+		      PAGE_TABLE.*
+		FROM (  
+		      SELECT ROWNUM AS IDX, A.*
+		      FROM	(				
+						SELECT	
+							 	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD') REG_DT,
+						       	TCD.CNSL_TYP_CD,
+						       	TCD.CNSL_EVNT_CD,
+						       	TCD.CNSL_CLF_UPR_CD,
+						       	TCD.CNSL_CLF_LWR_CD,
+						       	TCD.RCPT_MTHD_CD,
+						       	TCD.PAY_CNDI_CD,
+						       	TCD.COMMC_CLF,
+						       	COUNT(*) RCPT_CNT,
+						       	SUM(CASE WHEN PROC_YN = 'Y' THEN 1 ELSE 0 END) AS PROC_Y_CNT,
+						       	<![CDATA[
+						       	SUM(CASE WHEN PROC_YN <> 'Y'THEN 1 ELSE 0 END) AS PROC_N_CNT
+						       	]]>
+						FROM	TN_CNSL_DTL TCD
+								LEFT OUTER JOIN TB_PAY_MPHN_INFO 			TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+		       					LEFT OUTER JOIN TB_CP_PAY_SVC 	TCPS ON TCPS.CP_CD = TCD.CP_CD
+						WHERE 	1=1
+								<if test='stDate != null and !stDate.equals("") and endDate != null and !endDate.equals("")'>
+								AND TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1	
+								</if>
+								<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+								AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+								</if>
+								<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+								AND TCD.PAY_CNDI_CD = #{payCndiCd}
+								</if>
+								<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+								AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+								</if>
+								<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+								AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+								</if>
+								<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+								AND TCD.COMMC_CLF = #{commcClf}
+								</if>
+								<if test='mphnNo != null and !mphnNo.equals("")'>		/* 휴대폰 번호 */
+								AND TPMI.MPHN_NO LIKE '%'||#{mphnNo}||'%'
+								</if>
+								<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+								AND TCD.CP_CD LIKE '%'||#{cpCd}||'%'
+								</if>
+								<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+								AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+								</if>
+								<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+								AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+								</if>
+						GROUP BY	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD'),
+									TCD.CNSL_TYP_CD,
+									TCD.CNSL_EVNT_CD,
+									TCD.CNSL_CLF_UPR_CD,
+									TCD.CNSL_CLF_LWR_CD,
+									TCD.RCPT_MTHD_CD,
+									TCD.PAY_CNDI_CD,
+									TCD.COMMC_CLF
+						ORDER BY REG_DT DESC
+					)A
+		<![CDATA[
+			 WHERE ROWNUM <= #{pageParam.endRow}
+			)PAGE_TABLE
+		WHERE PAGE_TABLE.IDX >= #{pageParam.startRow}
+		]]>
+	</select>
+	
+	<select id="selectClmAnlsTypeChart" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsType" resultType="com.skplanet.impay.ccs.cam.model.ChartModel">
+		<![CDATA[
+			SELECT	/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnlsTypeChart, TAB-2 차트, 2016-01-25*/
+			        A.CHART_DATES,
+			        NVL(B.TKEV01CNT,0) AS TKEV01,
+			        NVL(B.TKEV02CNT,0) AS TKEV02,
+			        NVL(B.TKEV03CNT,0) AS TKEV03
+			FROM
+			      	(SELECT TO_CHAR(DAYS + (LEVEL - 1), 'YYYY.MM.DD') AS CHART_DATES
+			           	FROM ( SELECT TRUNC(TO_DATE( #{stDate},'YYYY.MM.DD'),'DD') AS DAYS FROM DUAL)
+			        	CONNECT BY LEVEL <= (TRUNC(TO_DATE(#{endDate},'YYYY.MM.DD'),'DD') - TRUNC(TO_DATE(#{stDate},'YYYY.MM.DD'),'DD')) + 1
+			   		) A
+		      		LEFT OUTER JOIN
+		      		(SELECT TO_CHAR(TCD.REG_DT,'YYYY.MM.DD') AS REG_DT,
+			          	SUM(CASE WHEN TCD.CNSL_EVNT_CD='TKEV01' THEN 1 ELSE 0 END ) TKEV01CNT,
+			          	SUM(CASE WHEN TCD.CNSL_EVNT_CD='TKEV02' THEN 1 ELSE 0 END ) TKEV02CNT,
+			          	SUM(CASE WHEN TCD.CNSL_EVNT_CD='TKEV03' THEN 1 ELSE 0 END ) TKEV03CNT
+		      		FROM TN_CNSL_DTL 			TCD
+		       		WHERE TCD.REG_DT BETWEEN TO_DATE(#{stDate},'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1
+		      		GROUP BY TO_CHAR(TCD.REG_DT,'YYYY.MM.DD') 
+		      		)B ON B.REG_DT=A.CHART_DATES
+			ORDER	BY A.CHART_DATES
+		]]>
+	</select>
+	
+	<select id="selectClmAnslTypeListExcelDown" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsType" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsType">
+			/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTypeListExcelDown, TAB-2 유형별 목록 엑셀다운로드, 2016-01-25 */
+			SELECT	
+				 	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD') REG_DT,
+			       	TCD.CNSL_TYP_CD,
+			       	TCD.CNSL_EVNT_CD,
+			       	TCD.CNSL_CLF_UPR_CD,
+			       	TCD.CNSL_CLF_LWR_CD,
+			       	TCD.RCPT_MTHD_CD,
+			       	TCD.PAY_CNDI_CD,
+			       	TCD.COMMC_CLF,
+			       	COUNT(*) RCPT_CNT,
+			       	SUM(CASE WHEN PROC_YN = 'Y' THEN 1 ELSE 0 END) AS PROC_Y_CNT,
+			       	<![CDATA[
+			       	SUM(CASE WHEN PROC_YN <> 'Y'THEN 1 ELSE 0 END) AS PROC_N_CNT
+			       	]]>
+			FROM	TN_CNSL_DTL TCD
+					LEFT OUTER JOIN TB_PAY_MPHN_INFO 			TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+      				LEFT OUTER JOIN TB_CP_PAY_SVC 	TCPS ON TCPS.CP_CD = TCD.CP_CD
+			WHERE 	1=1
+					<if test='stDate != null and !stDate.equals("") and endDate != null and !endDate.equals("")'>
+					AND TCD.REG_DT BETWEEN TO_DATE(#{stDate}, 'YYYY.MM.DD') AND TO_DATE(#{endDate},'YYYY.MM.DD')+1	
+					</if>
+					<if test='rcptMthdCd != null and !rcptMthdCd.equals("")'>	/* 접수유형 */
+					AND TCD.RCPT_MTHD_CD = #{rcptMthdCd}
+					</if>
+					<if test='payCndiCd != null and !payCndiCd.equals("")'>		/* 결제조건 */
+					AND TCD.PAY_CNDI_CD = #{payCndiCd}
+					</if>
+					<if test='cnslTypCd != null and !cnslTypCd.equals("")'>		/* 상담유형 */
+					AND TCD.CNSL_TYP_CD = #{cnslTypCd}
+					</if>
+					<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>/* 상담구분 */
+					AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+					</if>
+					<if test='commcClf != null and !commcClf.equals("")'>	/* 이통사 */
+					AND TCD.COMMC_CLF = #{commcClf}
+					</if>
+					<if test='mphnNo != null and !mphnNo.equals("")'>		/* 휴대폰 번호 */
+					AND TPMI.MPHN_NO LIKE '%'||#{mphnNo}||'%'
+					</if>
+					<if test='cpCd != null and !cpCd.equals("")'>			/* 가맹점 코드 */
+					AND TCD.CP_CD LIKE '%'||#{cpCd}||'%'
+					</if>
+					<if test='cpNm != null and !cpNm.equals("")'>			/* 가맹점 명 */
+					AND UPPER(TCPS.PAY_SVC_NM) LIKE '%'||UPPER(#{cpNm})||'%'
+					</if>
+					<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>	/* 이벤트 */
+					AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+					</if>
+			GROUP BY	TO_CHAR(TCD.REG_DT, 'YYYY.MM.DD'),
+						TCD.CNSL_TYP_CD,
+						TCD.CNSL_EVNT_CD,
+						TCD.CNSL_CLF_UPR_CD,
+						TCD.CNSL_CLF_LWR_CD,
+						TCD.RCPT_MTHD_CD,
+						TCD.PAY_CNDI_CD,
+						TCD.COMMC_CLF
+			ORDER BY REG_DT
+	</select>
+	
+	<!-- TAB-3 -->
+	
+	<!-- TAB-3 공통 조회 조건 -->
+	<sql id="tjurConditionSql">
+		<!-- 업로드 일자 -->
+		<if test='stDate != null and !stDate.equals("")'>
+		<![CDATA[
+		AND TCD.REG_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+		]]>
+		</if>
+		<if test='endDate != null and !endDate.equals("")'>
+		<![CDATA[
+		AND TCD.REG_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+		]]>
+		</if>
+		
+		<!-- 이관구분(부서) -->
+		<if test='deptCd != null and !deptCd.equals("")'>	
+			<choose>
+				<when test='deptCd.equals("C")'>
+					AND TCCT.TJUR_CLF_FLG = #{deptCd}
+				</when>
+				<otherwise>
+					AND TCCT.DEPT_CD = #{deptCd}
+				</otherwise>
+			</choose>
+		</if>
+		
+		<!-- 가맹점 -->
+		<if test='cpCd != null and !cpCd.equals("")'>
+			<choose>
+				<when test='cpCd.equals("PGPGDN")'>
+				AND TEI.PG_CLF_FLG = 'D'
+				</when>
+				<when test='cpCd.equals("PGPGMB")'>
+				AND TEI.PG_CLF_FLG = 'M'
+				</when>
+				<when test='cpCd.equals("PGPGIP")'>
+				<![CDATA[
+				AND TEI.PG_CLF_FLG = 'I'
+				AND NOT EXISTS (
+					SELECT 1 FROM TB_ENTP_INFO TEI_2 WHERE TEI.ENTP_ID = TEI_2.ENTP_ID AND TEI_2.RESLSR_CLF_FLG = 'U'
+				)
+				]]>
+				</when>
+				<when test='cpCd.equals("PGRSDW")'>
+				AND TEI.RESLSR_CLF_FLG = 'U'
+				</when>
+			</choose>
+		</if>
+		
+		<!-- 상담구분 -->
+		<if test='cnslClfUprCd != null and !cnslClfUprCd.equals("")'>
+			AND TCD.CNSL_CLF_UPR_CD = #{cnslClfUprCd}
+		</if>
+		
+		<!-- 이통사 -->
+		<if test='commcClf != null and !commcClf.equals("")'>		
+			AND TCD.COMMC_CLF = #{commcClf}
+		</if>
+		
+		<!-- 이벤트 -->
+		<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>
+			AND TCD.CNSL_EVNT_CD = #{cnslEvntCd}
+		</if>
+	</sql>
+	
+	<select id="selectClmAnslTjurCount" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsTjurRcpt" resultType="int">
+		/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTjurCount, TAB-3 이관접수별 목록 카운트, 2016-01-26 */
+	SELECT  COUNT(*)
+	FROM	(
+			SELECT
+					TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD') AS REG_DT,
+		            TJUR.TJUR_CLF_FLG,
+		            TJUR.DEPT_CD,
+		            TJUR.PAY_SVC_NM,
+		            TJUR.CNSL_TYP_CD,
+		            TJUR.CNSL_CLF_UPR_CD,
+		            TJUR.CNSL_EVNT_CD,
+		            TJUR.COMMC_CLF,
+		            COUNT(TJUR.PROC_YN) AS RCPT_CNT,
+		            <![CDATA[
+		            SUM(CASE WHEN TJUR.PROC_YN = 'Y' THEN 1 ELSE 0 END) AS PROC_Y_CNT,
+		            SUM(CASE WHEN TJUR.PROC_YN <> 'Y' THEN 1 ELSE 0 END) AS PROC_N_CNT
+		            ]]>
+			FROM	(
+					SELECT
+							TCD.REG_DT, 
+							TCCT.TJUR_CLF_FLG,
+							TCCT.DEPT_CD,
+							TCPS.PAY_SVC_NM,       
+							TCD.CNSL_TYP_CD,	
+							TCD.CNSL_CLF_UPR_CD,
+							TCD.CNSL_EVNT_CD,
+							TCD.COMMC_CLF,
+							TCD.PROC_YN
+					FROM	TN_CNSL_DTL TCD
+					        JOIN TB_PAY_MPHN_INFO 				TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+					        JOIN TN_CNSL_CP_TJUR 				TCCT ON TCCT.RCPT_NO = TCD.RCPT_NO
+					        LEFT OUTER JOIN TB_CP_PAY_SVC 		TCPS ON TCPS.CP_CD = TCD.CP_CD
+					        LEFT OUTER JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID = TEI.ENTP_ID
+					WHERE 	1=1
+					<include refid="tjurConditionSql"/>
+				<if test='deptCd == null or deptCd.equals("") or deptCd.equals("C")'>
+					UNION ALL		
+					      							
+					SELECT	TCFU.UPLD_DT,			  			/* 등록 일시 */
+					        'C' AS TJUR_CLF_FLG,
+					        '' AS DEPT_CD,
+					        TCFU.CP_NM AS PAY_SVC_NM,			/* 가맹점 명 */ 
+					        TCFU.CNSL_TYP_CD,
+					        TCFU.CNSL_CLF_CD AS CNSL_CLF_UPR_CD,
+					        'EVENT0' AS CNSL_EVNT_CD,
+					        TCFU.COMMC_CLF_CD AS COMMC_CLF,						
+					        PROC_STAT AS PROC_YN 				/* 처리 완료 건수 */
+					FROM 	TN_CNSL_FILE_UPLD 			TCFU
+					        JOIN TC_COM 				COM  ON TCFU.PG_CLF_CD = COM.CD
+					        LEFT JOIN TB_PAY_MPHN_INFO TPMI  ON TCFU.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+					WHERE 	1=1
+					<!-- 업로드 일자 -->
+					<if test='stDate != null and !stDate.equals("")'>
+					<![CDATA[
+						AND TCFU.UPLD_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+					]]>
+					</if>
+					<if test='endDate != null and !endDate.equals("")'>
+					<![CDATA[
+						AND TCFU.UPLD_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+					]]>
+					</if>
+					<!-- 가맹점 -->
+					<if test='cpCd != null and !cpCd.equals("")'>
+						AND TCFU.PG_CLF_CD = #{cpCd}
+					</if>
+					<!-- 이벤트 -->
+					<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>
+						AND 'EVENT0' = #{cnslEvntCd}
+					</if>
+					<!-- 이통사 -->
+					<if test='commcClf != null and !commcClf.equals("")'>
+						AND TCFU.COMMC_CLF_CD = #{commcClf}
+					</if>
+				</if>	
+						)TJUR
+			GROUP BY	TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD'),
+						TJUR.TJUR_CLF_FLG,
+						TJUR.DEPT_CD,
+						TJUR.PAY_SVC_NM,
+						TJUR.CNSL_TYP_CD,
+						TJUR.CNSL_CLF_UPR_CD,
+						TJUR.CNSL_EVNT_CD,
+						TJUR.COMMC_CLF
+		)CNT
+	</select>
+
+	<select id="selectClmAnslTjurList" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsTjurRcpt" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsTjurRcpt" >
+		SELECT	/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTjurList, TAB-3 이관접수별 목록 조회, 2016-01-26 */
+		      PAGE_TABLE.*
+		FROM (  
+		      SELECT ROWNUM AS IDX, A.*
+		      FROM	(
+						SELECT
+								TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD') AS REG_DT,
+					            TJUR.TJUR_CLF_FLG,
+					            TJUR.DEPT_CD,
+					            TJUR.PAY_SVC_NM,
+					            TJUR.CNSL_TYP_CD,
+					            TJUR.CNSL_CLF_UPR_CD,
+					            TJUR.CNSL_EVNT_CD,
+					            TJUR.COMMC_CLF,
+					            COUNT(TJUR.PROC_YN) AS RCPT_CNT,
+					            <![CDATA[
+					            SUM(CASE WHEN TJUR.PROC_YN = 'Y' THEN 1 ELSE 0 END) AS PROC_Y_CNT,
+					            SUM(CASE WHEN TJUR.PROC_YN <> 'Y' THEN 1 ELSE 0 END) AS PROC_N_CNT
+					            ]]>
+						FROM	(
+									SELECT  
+											TCD.REG_DT, 
+											TCCT.TJUR_CLF_FLG,
+											TCCT.DEPT_CD,
+											TCPS.PAY_SVC_NM,       
+											TCD.CNSL_TYP_CD,	
+											TCD.CNSL_CLF_UPR_CD,
+											TCD.CNSL_EVNT_CD,
+											TCD.COMMC_CLF,
+											TCD.PROC_YN
+									FROM	TN_CNSL_DTL TCD
+									        JOIN TB_PAY_MPHN_INFO 				TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+									        JOIN TN_CNSL_CP_TJUR 	TCCT ON TCCT.RCPT_NO = TCD.RCPT_NO
+									        LEFT OUTER JOIN TB_CP_PAY_SVC 		TCPS ON TCPS.CP_CD = TCD.CP_CD
+									        LEFT OUTER JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID = TEI.ENTP_ID
+									WHERE 	1=1
+									<include refid="tjurConditionSql"/>
+								<if test='deptCd == null or deptCd.equals("") or deptCd.equals("C")'>
+									UNION ALL		
+									      							
+									SELECT	TCFU.UPLD_DT,			  			/* 등록 일시 */
+									        'C' AS TJUR_CLF_FLG,
+									        '' AS DEPT_CD,
+									        TCFU.CP_NM AS PAY_SVC_NM,			/* 가맹점 명 */ 
+									        TCFU.CNSL_TYP_CD,
+									        TCFU.CNSL_CLF_CD AS CNSL_CLF_UPR_CD,
+									        'EVENT0' AS CNSL_EVNT_CD,
+									        TCFU.COMMC_CLF_CD AS COMMC_CLF,						
+									        PROC_STAT AS PROC_YN 				/* 처리 완료 건수 */
+									FROM 	TN_CNSL_FILE_UPLD 			TCFU
+									        JOIN TC_COM 				COM  ON TCFU.PG_CLF_CD = COM.CD
+									        LEFT JOIN TB_PAY_MPHN_INFO TPMI ON TCFU.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+									WHERE 	1=1
+									<!-- 업로드 일자 -->
+									<if test='stDate != null and !stDate.equals("")'>
+									<![CDATA[
+										AND TCFU.UPLD_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+									]]>
+									</if>
+									<if test='endDate != null and !endDate.equals("")'>
+									<![CDATA[
+										AND TCFU.UPLD_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+									]]>
+									</if>
+									<!-- 가맹점 -->
+									<if test='cpCd != null and !cpCd.equals("")'>
+										AND TCFU.PG_CLF_CD = #{cpCd}
+									</if>
+									<!-- 이벤트 -->
+									<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>
+										AND 'EVENT0' = #{cnslEvntCd}
+									</if>
+									<!-- 이통사 -->
+									<if test='commcClf != null and !commcClf.equals("")'>
+										AND TCFU.COMMC_CLF_CD = #{commcClf}
+									</if>
+								</if>	
+								)TJUR
+						GROUP BY	TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD'),
+									TJUR.TJUR_CLF_FLG,
+									TJUR.DEPT_CD,
+									TJUR.PAY_SVC_NM,
+									TJUR.CNSL_TYP_CD,
+									TJUR.CNSL_CLF_UPR_CD,
+									TJUR.CNSL_EVNT_CD,
+									TJUR.COMMC_CLF
+					    ORDER BY TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD') DESC 
+		      )A
+		<![CDATA[
+		      WHERE ROWNUM <= #{pageParam.endRow}
+			)PAGE_TABLE
+		WHERE PAGE_TABLE.IDX >= #{pageParam.startRow}
+		
+		]]>
+	</select>
+	
+	<select id="selectClmAnlsTjurChart" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsType" resultType="com.skplanet.impay.ccs.cam.model.ChartModel">
+		<![CDATA[
+		/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnlsTjurChart, TAB-3 차트, 2016-02-01*/			
+		SELECT A.CHART_DATES,
+				SUM(NVL(B.CP_CNT,0)) AS CP_CNT,
+				SUM(NVL(B.ATIPBZ_CNT,0)) AS ATIPBZ_CNT,
+		        SUM(NVL(B.ATIPIT_CNT,0)) AS ATIPIT_CNT,
+		        SUM(NVL(B.ATIPOP_CNT,0)) AS ATIPOP_CNT
+		FROM
+			(SELECT TO_CHAR(DAYS + (LEVEL - 1), 'YYYY.MM.DD') AS CHART_DATES
+			            FROM ( SELECT TRUNC(TO_DATE( #{stDate},'YYYY.MM.DD'),'DD') AS DAYS FROM DUAL)
+			            CONNECT BY LEVEL <= (TRUNC(TO_DATE(#{endDate},'YYYY.MM.DD'),'DD') - TRUNC(TO_DATE(#{stDate},'YYYY.MM.DD'),'DD')) + 1
+			) A LEFT JOIN
+			(
+			SELECT TO_CHAR(CP.REG_DT,'YYYY.MM.DD') AS REG_DT,
+			       SUM(CP.TJUR_CLF_FLG) OVER(PARTITION BY CP.REG_DT ORDER BY CP.REG_DT) AS CP_CNT,
+			       SUM(CP.ATIPBZ_CNT) OVER(PARTITION BY CP.REG_DT ORDER BY CP.REG_DT) AS ATIPBZ_CNT,
+			       SUM(CP.ATIPIT_CNT) OVER(PARTITION BY CP.REG_DT ORDER BY CP.REG_DT) AS ATIPIT_CNT,
+			       SUM(CP.ATIPOP_CNT) OVER(PARTITION BY CP.REG_DT ORDER BY CP.REG_DT) AS ATIPOP_CNT
+			  FROM
+			       (SELECT TCD.REG_DT,
+			              DECODE(TCCT.TJUR_CLF_FLG, 'C', 1, 0) AS TJUR_CLF_FLG,
+			              DECODE(TCCT.DEPT_CD, 'ATIPBZ', 1, 0) AS ATIPBZ_CNT,
+			              DECODE(TCCT.DEPT_CD, 'ATIPIT', 1, 0) AS ATIPIT_CNT,
+			              DECODE(TCCT.DEPT_CD, 'ATIPOP', 1, 0) AS ATIPOP_CNT
+			         FROM TN_CNSL_CP_TJUR TCCT
+			          JOIN TN_CNSL_DTL TCD
+			              ON TCCT.RCPT_NO = TCD.RCPT_NO
+			        WHERE 1=1
+			              AND TCD.REG_DT >= TO_DATE(#{stDate},'YYYY.MM.DD')
+			              AND TCD.REG_DT < TO_DATE(#{endDate},'YYYY.MM.DD')+1
+			           UNION ALL
+			       SELECT TCFU.UPLD_DT,
+			              1 AS TJUR_CLF_FLG,
+			              0 AS  ATIPBZ_CNT,
+			              0 AS  ATIPIT_CNT,
+			              0 AS  ATIPOP_CNT
+			         FROM TN_CNSL_FILE_UPLD TCFU
+			          JOIN TC_COM COM
+			              ON TCFU.PG_CLF_CD = COM.CD
+			        WHERE 1=1
+			              AND TCFU.UPLD_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+			              AND TCFU.UPLD_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+			       ) CP
+			)B ON B.REG_DT = A.CHART_DATES
+			GROUP BY A.CHART_DATES
+			ORDER BY A.CHART_DATES
+		]]>
+	</select>
+	<select id="selectClmAnslTjurListExcelDown" parameterType="com.skplanet.impay.ccs.cam.model.ClmAnlsTjurRcpt" resultType="com.skplanet.impay.ccs.cam.model.ClmAnlsTjurRcpt" >
+     			/* impay-ccs-web, cam/ClaimAnalysisMngMapper.xml, selectClmAnslTjurListExcelDown, TAB-3 이관접수별 목록 엑셀 다운로드, 2016-01-26 */						
+		SELECT	ROWNUM AS IDX,
+				A.*		      	
+		FROM(			
+				SELECT
+						TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD') AS REG_DT,
+			            TJUR.TJUR_CLF_FLG,
+			            TJUR.DEPT_CD,
+			            TJUR.PAY_SVC_NM,
+			            TJUR.CNSL_TYP_CD,
+			            TJUR.CNSL_CLF_UPR_CD,
+			            TJUR.CNSL_EVNT_CD,
+			            TJUR.COMMC_CLF,
+			            COUNT(TJUR.PROC_YN) AS RCPT_CNT,
+			            <![CDATA[
+			            SUM(CASE WHEN TJUR.PROC_YN = 'Y' THEN 1 ELSE 0 END) AS PROC_Y_CNT,
+			            SUM(CASE WHEN TJUR.PROC_YN <> 'Y' THEN 1 ELSE 0 END) AS PROC_N_CNT
+			            ]]>
+				FROM	(
+							SELECT  
+									TCD.REG_DT, 
+									TCCT.TJUR_CLF_FLG,
+									TCCT.DEPT_CD,
+									TCPS.PAY_SVC_NM,       
+									TCD.CNSL_TYP_CD,	
+									TCD.CNSL_CLF_UPR_CD,
+									TCD.CNSL_EVNT_CD,
+									TCD.COMMC_CLF,
+									TCD.PROC_YN
+							FROM	TN_CNSL_DTL TCD
+							        JOIN TB_PAY_MPHN_INFO 				TPMI ON TCD.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+							        JOIN TN_CNSL_CP_TJUR 	TCCT ON TCCT.RCPT_NO = TCD.RCPT_NO
+							        LEFT OUTER JOIN TB_CP_PAY_SVC 		TCPS ON TCPS.CP_CD = TCD.CP_CD
+							        LEFT OUTER JOIN TB_ENTP_INFO 		TEI  ON TCPS.ADJ_ENTP_ID = TEI.ENTP_ID
+							WHERE 	1=1
+							<include refid="tjurConditionSql"/>
+						<if test='deptCd == null or deptCd.equals("") or deptCd.equals("C")'>
+							UNION ALL		
+							      							
+							SELECT	TCFU.UPLD_DT,			  			/* 등록 일시 */
+							        'C' AS TJUR_CLF_FLG,
+							        '' AS DEPT_CD,
+							        TCFU.CP_NM AS PAY_SVC_NM,			/* 가맹점 명 */ 
+							        TCFU.CNSL_TYP_CD,
+							        TCFU.CNSL_CLF_CD AS CNSL_CLF_UPR_CD,
+							        'EVENT0' AS CNSL_EVNT_CD,
+							        TCFU.COMMC_CLF_CD AS COMMC_CLF,						
+							        PROC_STAT AS PROC_YN 				/* 처리 완료 건수 */
+							FROM 	TN_CNSL_FILE_UPLD 			TCFU
+							        JOIN TC_COM 				COM  ON TCFU.PG_CLF_CD = COM.CD
+							        LEFT JOIN TB_PAY_MPHN_INFO TPMI ON TCFU.PAY_MPHN_ID = TPMI.PAY_MPHN_ID
+							WHERE 	1=1
+							<!-- 업로드 일자 -->
+							<if test='stDate != null and !stDate.equals("")'>
+							<![CDATA[
+								AND TCFU.UPLD_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+							]]>
+							</if>
+							<if test='endDate != null and !endDate.equals("")'>
+							<![CDATA[
+								AND TCFU.UPLD_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+							]]>
+							</if>
+							<!-- 가맹점 -->
+							<if test='cpCd != null and !cpCd.equals("")'>
+								AND TCFU.PG_CLF_CD = #{cpCd}
+							</if>
+							<!-- 이벤트 -->
+							<if test='cnslEvntCd != null and !cnslEvntCd.equals("")'>
+								AND 'EVENT0' = #{cnslEvntCd}
+							</if>
+							<!-- 이통사 -->
+							<if test='commcClf != null and !commcClf.equals("")'>
+								AND TCFU.COMMC_CLF_CD = #{commcClf}
+							</if>
+						</if>	
+						)TJUR
+				GROUP BY	TO_CHAR(TJUR.REG_DT, 'YYYY.MM.DD'),
+							TJUR.TJUR_CLF_FLG,
+							TJUR.DEPT_CD,
+							TJUR.PAY_SVC_NM,
+							TJUR.CNSL_TYP_CD,
+							TJUR.CNSL_CLF_UPR_CD,
+							TJUR.CNSL_EVNT_CD,
+							TJUR.COMMC_CLF
+			)A
+	</select>
+</mapper>

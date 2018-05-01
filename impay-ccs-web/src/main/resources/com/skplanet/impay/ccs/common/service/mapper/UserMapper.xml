@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+	사용자 Mapper
+	Sang jun, Park 
+ -->
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.UserMapper">
+
+	<select id="selectCntcInfo" parameterType="int" resultType="com.skplanet.impay.ccs.common.model.CntcInfo">
+		<![CDATA[
+		SELECT  /* impay-ccs-web, common/UserMapper.xml, selectCntcInfo, 연락처 정보 조회 */
+				CNTC_SEQ,			/* 연락처 순번 */
+				ENTP_ID,			/* 법인 ID */
+				CHRG_WRK_CLF_CD,	/* 담당업무구분 */
+				CHRGR_NM,			/* 담당자명 */
+				DEPT_NM,			/* 부서명 */
+				TEL_NO,				/* 전화번호 */
+				MPHN_NO,			/* 휴대폰 번호 */
+				EMAIL,				/* EMAIL */
+				NOTI_TRGT_YN,		/* 통보대상여부 */
+				USE_YN,				/* 사용여부 */
+        		REG_DT,				/* 등록일자 */
+        		REGR,				/* 등록자 */
+        		LAST_CHG_DT,		/* 최종 변경 일시 */
+        		LAST_CHGR			/* 최종 변경자 */
+		FROM  	TN_CNTC_INFO
+		WHERE 	CNTC_SEQ = #{cntcSeq}
+		]]>
+	</select>
+	
+	<!-- 연락처 정보 key 얻기 -->
+	<select id="selectCntcSeq" resultType="int">
+		SELECT PKG_SEQ.FN_GET_SEQ('TN_CNTC_INFO') FROM DUAL
+	</select>
+	
+	<insert id="insertCntcInfo" parameterType="com.skplanet.impay.ccs.common.model.CntcInfo">
+        <![CDATA[
+        INSERT	/* impay-ccs-web, common/UserMapper.xml, insertCntcInfo, 연락처 정보 등록 */
+        INTO TN_CNTC_INFO (	
+        	CNTC_SEQ,			/* 순번 */
+			ENTP_ID,			/* 법인 ID */
+			CHRG_WRK_CLF_CD,	/* 담당업무구분 */
+			CHRGR_NM,			/* 담당자명 */
+			DEPT_NM,			/* 부서명 */
+			TEL_NO,				/* 전화번호 */
+			MPHN_NO,			/* 휴대폰 번호 */
+			EMAIL,				/* EMAIL */
+			NOTI_TRGT_YN,		/* 통보대상여부 */
+			USE_YN,				/* 사용여부 */
+       		REG_DT,				/* 등록일자 */
+       		REGR,				/* 등록자 */
+       		LAST_CHG_DT,		/* 최종 변경 일시 */
+       		LAST_CHGR			/* 최종 변경자 */
+		) VALUES (
+			#{cntcSeq},
+			#{entpId},
+			#{chrgWrkClfCd},
+			#{chrgrNm},
+			#{deptNm},
+			#{telNo},
+			#{mphnNo},
+			#{email},
+			#{notiTrgtYn},
+			#{useYn},
+			SYSDATE,		
+			#{regr},	
+			SYSDATE,		
+			#{lastChgr}
+		)
+        ]]>        
+    </insert>
+    
+	<update id="updateCntcInfo" parameterType="com.skplanet.impay.ccs.common.model.CntcInfo">
+		UPDATE	/* impay-ccs-web, common/UserMapper.xml, updateCntcInfo, 연락처 정보 수정 */ 
+		TN_CNTC_INFO 
+		SET
+			<if test="entpId != null">
+				ENTP_ID			= #{entpId} 		/* 법인 ID */,
+			</if>
+			<if test="chrgWrkClfCd != null">
+				CHRG_WRK_CLF_CD	= #{chrgWrkClfCd}	/* 담당업무구분 */,
+			</if>
+			<if test="chrgrNm != null">
+				CHRGR_NM		= #{chrgrNm}		/* 담당자명 */,
+			</if>
+			<if test="deptNm != null">
+				DEPT_NM			= #{deptNm}			/* 부서명 */,
+			</if>
+			<if test="telNo != null">
+				TEL_NO			= #{telNo}			/* 전화번호 */,
+			</if>
+			<if test="mphnNo != null">
+				MPHN_NO			= #{mphnNo}			/* 휴대폰 번호 */,
+			</if>
+			<if test="email != null">
+				EMAIL			= #{email}			/* EMAIL */,
+			</if>
+			<if test="notiTrgtYn != null">
+				NOTI_TRGT_YN	= #{notiTrgtYn}		/* 통보대상여부 */,
+			</if>
+			<if test="useYn != null">
+				USE_YN			= #{useYn}			/* 사용여부 */,
+			</if>
+       		LAST_CHG_DT			= SYSDATE			/* 최종 변경 일시 */,
+       		LAST_CHGR			= #{lastChgr}		/* 최종 변경자 */
+		WHERE	CNTC_SEQ 		= #{cntcSeq}
+	</update>
+	
+	<delete id="deleteCntcInfo" parameterType="com.skplanet.impay.ccs.common.model.CntcInfo" >
+        DELETE	/* impay-ccs-web, common/UserMapper.xml, deleteCntcInfo, 연락처 정보 삭제 */ 
+        FROM TN_CNTC_INFO 
+		WHERE	CNTC_SEQ = #{cntcSeq}
+    </delete>
+    
+    <select id="selectUserNm" parameterType="string" resultType="string">
+    	SELECT	/* impay-ccs-web, common/UserMapper.xml, selectUserNm, 사용자 이름 얻기 */ 
+    			USER_NM
+    	FROM	VN_USER_ITGR_INQRY
+    	WHERE	SEQ = #{userSeq}
+    </select>
+    
+    <select id="selectUserId" parameterType="string" resultType="string">
+    	SELECT	/* impay-ccs-web, common/UserMapper.xml, selectUserNm, 사용자 ID 조회 */ 
+    			USER_ID
+    	FROM	VN_USER_ITGR_INQRY
+    	WHERE	SEQ = #{userSeq}
+    </select>
+	
+    <select id="selectPayMphnInfo" parameterType="com.skplanet.impay.ccs.common.model.PayMphnInfo" resultType="com.skplanet.impay.ccs.common.model.PayMphnInfo">
+    	SELECT	/* impay-ccs-web, common/UserMapper.xml, selectPayMphnInfo, 결제폰 정보 조회 2016-01-26 */ 
+    			PAY_MPHN_ID,
+				COMMC_CLF,
+				PAYR_NM,
+				MPHN_NO,
+				BRTH_YMD,
+				BRTH_YY,
+				GNDR_FLG,
+				PAYR_SEQ,
+				PAY_ITCPT_YN,
+				PAY_ITCPT_DT,
+				PAY_ITCPT_REGR,
+				RELS_YN,
+				REG_DT,
+				LAST_CHG_DT,
+				CASE
+					WHEN BRTH_YMD IS NOT NULL THEN TO_CHAR(TO_DATE(BRTH_YY || SUBSTR(BRTH_YMD, 3, 4), 'YYYYMMDD'), 'YYYY.MM.DD')
+					ELSE NULL
+				END AS BRTH_YMD_FULL
+    	FROM	TB_PAY_MPHN_INFO
+    	WHERE	PAY_MPHN_ID = #{payMphnId}
+    </select>
+    
+    <select id="selectPayMphnInfoList" parameterType="com.skplanet.impay.ccs.common.model.PayMphnInfo" resultType="com.skplanet.impay.ccs.common.model.PayMphnInfo">
+    	SELECT	/* impay-ccs-web, common/UserMapper.xml, selectPayMphnInfoList, 결제폰 정보 리스트 조회, 2016-01-26 */ 
+    			PAY_MPHN_ID,
+				COMMC_CLF,
+				(SELECT CD_NM FROM TC_COM WHERE CD = COMMC_CLF) COMMC_CLF_NM,
+				PAYR_NM,
+				MPHN_NO,
+				BRTH_YMD,
+				BRTH_YY,
+				GNDR_FLG,
+				PAYR_SEQ,
+				PAY_ITCPT_YN,
+				PAY_ITCPT_DT,
+				PAY_ITCPT_REGR,
+				RELS_YN,
+				REG_DT,
+				LAST_CHG_DT
+    	FROM	TB_PAY_MPHN_INFO
+    	WHERE	1 = 1
+    		<if test='mphnNo != null and !mphnNo.equals("")'>
+    			AND SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{mphnNo})
+   			</if>
+   			<if test='commcClf != null and !commcClf.equals("")'>
+    			AND COMMC_CLF = #{commcClf}
+   			</if>
+   			<if test='payrSeq != null and !payrSeq.equals("")'>
+    			AND PAYR_SEQ = #{payrSeq}
+   			</if>
+   			<if test='payMphnId != null and !payMphnId.equals("")'>
+    			AND PAY_MPHN_ID = #{payMphnId}
+   			</if>
+   		ORDER BY REG_DT DESC
+    </select>
+    
+    <update id="updatePayMphnInfo" parameterType="com.skplanet.impay.ccs.common.model.PayMphnInfo">
+    	UPDATE	/* impay-ccs-web, common/UserMapper.xml, updatePayMphnInfo, 결제폰 정보 수정, 2016-01-26 */ 
+    			TB_PAY_MPHN_INFO
+    	SET
+    		<!-- 미거래 고객이 수정할 경우 -->
+    		<if test='payrSeq != null and !payrSeq.equals("") and payrSeq.equals("9999999999")'>
+    			<if test='commcClf != null and !commcClf.equals("")'>
+    				COMMC_CLF = #{commcClf},
+	    		</if>
+	    		<if test='brthYmd != null and !brthYmd.equals("")'>
+	    			BRTH_YMD = #{brthYmd},
+	    		</if>
+	    		<if test='brthYy != null and !brthYy.equals("")'>
+	    			BRTH_YY = #{brthYy},
+	    		</if>
+    		</if>
+    		<!-- 결제 차단 정보 수정 -->
+    		<if test='payItcptYn != null and !payItcptYn.equals("")'>
+    			PAY_ITCPT_YN = #{payItcptYn},
+    			<if test='payItcptYn.equals("Y")'>
+    				PAY_ITCPT_DT = SYSDATE,
+    				PAY_ITCPT_REGR = #{payItcptRegr, jdbcType=VARCHAR},
+    			</if>
+    			<if test='payItcptYn.equals("N")'>
+    				PAY_ITCPT_DT = NULL,
+    				PAY_ITCPT_REGR = NULL,
+    			</if>
+    		</if>
+    		<if test='payrNm != null and !payrNm.equals("")'>
+    			PAYR_NM = #{payrNm},
+    		</if>
+    		LAST_CHG_DT = SYSDATE
+    	WHERE	PAY_MPHN_ID = #{payMphnId}
+    </update>
+    
+    <update id="updatePayrInfo" parameterType="com.skplanet.impay.ccs.common.model.PayrInfo">
+    	UPDATE	/* impay-ccs-web, common/UserMapper.xml, updatePayrInfo, 이용자 정보 수정, 2016-01-26 */ 
+    			TB_PAYR_INFO
+    	SET
+    		<if test='payItcptYn != null and !payItcptYn.equals("")'>
+    			PAY_ITCPT_YN = #{payItcptYn},
+    			<if test='payItcptYn.equals("Y")'>
+    				PAY_ITCPT_DT = SYSDATE,
+    				PAY_ITCPT_REGR = #{payItcptRegr, jdbcType=VARCHAR},
+    			</if>
+    			<if test='payItcptYn.equals("N")'>
+    				PAY_ITCPT_DT = NULL,
+    				PAY_ITCPT_REGR = NULL,
+    			</if>
+    		</if>
+    		LAST_CHG_DT = SYSDATE
+    	WHERE	PAYR_SEQ = #{payrSeq}
+    </update>
+    
+    <select id="selectPayrInfo" parameterType="string" resultType="com.skplanet.impay.ccs.common.model.PayrInfo">
+    	SELECT	/* impay-ccs-web, common/UserMapper.xml, selectPayrInfo, 이용자 정보 조회, 2016-01-26 */
+    			PAYR_SEQ,
+				DI,
+				REG_DT,
+				LAST_CHG_DT,
+				PAY_ITCPT_YN,
+				PAY_ITCPT_DT,
+				PAY_ITCPT_REGR
+		FROM	TB_PAYR_INFO
+		WHERE	PAYR_SEQ = #{payrSeq}
+    </select>
+    
+    <select id="selectUserTypClfInfo" parameterType="String" resultType="com.skplanet.impay.ccs.uim.model.UserMng" >
+    	SELECT 	/* impay-ccs-web, common/UserMapper.xml, selectUserTypClfInfo, 관리자 유형에 따른 이용자 정보 조회 */ 
+    			USER_SEQ,
+    			USER_ID,
+    			USER_NM
+	    FROM 	TN_USER
+	    WHERE 	ADM_TYP_CD = #{ADMTYPCD}
+    </select>
+    
+    <update id="insertPayMphnInfo" parameterType="com.skplanet.impay.ccs.common.model.PayMphnInfo">
+    	<selectKey keyProperty="payMphnId" resultType="string" order="BEFORE">
+    		SELECT PKG_SEQ.FN_GET_SEQ('TB_PAY_MPHN_INFO') FROM DUAL
+    	</selectKey>
+    	INSERT	/* impay-ccs-web, common/UserMapper.xml, insertPayMphnInfo, 미거래고객 가상등록, 2016-01-27 */
+		INTO 	TB_PAY_MPHN_INFO(
+				  PAY_MPHN_ID
+		      	, COMMC_CLF
+		    	, MPHN_NO
+		    	, PAYR_SEQ
+		    	, PAY_ITCPT_YN
+		    	, RELS_YN
+		    	, REG_DT
+		    	, LAST_CHG_DT
+		    	, BRTH_YMD
+		    	, BRTH_YY
+		    	, GNDR_FLG
+		) VALUES (
+				  #{payMphnId}
+				<choose>
+					<when test='commcClf != null and !commcClf.equals("")'>
+					, #{commcClf}
+					</when>
+					<otherwise>
+					, 'ZZZZZZ'
+					</otherwise>
+				</choose>
+		    	, #{mphnNo}
+		    	, '9999999999'
+		    	, 'N'
+		    	, 'N'
+		    	, SYSDATE
+		    	, SYSDATE
+		    	<choose>
+			    	<when test='brthYmd != null and !brthYmd.equals("")'>
+			    	, #{brthYmd}
+			    	</when>
+			    	<otherwise>
+			    	, '9912319'
+			    	</otherwise>
+		    	</choose>
+		    	<choose>
+		    		<when test='brthYy != null and !brthYy.equals("")'>
+			    	, #{brthYy}
+			    	</when>
+			    	<otherwise>
+			    	, '2999'
+			    	</otherwise>
+		    	</choose>
+		    	, 'Z'
+		)
+    </update>
+</mapper>

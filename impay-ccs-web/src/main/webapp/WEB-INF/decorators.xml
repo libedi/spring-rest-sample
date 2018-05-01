@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<decorators defaultdir="/WEB-INF/decorators">
+    <excludes>
+        <pattern>/console*</pattern>
+    </excludes>
+    
+    <decorator name="errorLayout" page="common/errorLayout.jsp">
+        <pattern>/handle/error</pattern>
+    </decorator>
+    
+    <decorator name="layout" page="common/layout.jsp">
+        <pattern>/*</pattern>
+    </decorator>
+    
+    <decorator name="popup" page="common/popup.jsp">
+        <pattern>/**Popup</pattern>
+    </decorator>
+    
+    <decorator name="print" page="common/print.jsp">
+        <pattern>/**Print</pattern>
+    </decorator>
+
+    <excludes>
+        <pattern>/login/**</pattern>
+        <pattern>/common/**</pattern>
+        <pattern>/email/**</pattern>
+        <pattern>/error/**</pattern>
+        <pattern>/healthcheck.jsp</pattern>
+        <pattern>/robots.txt</pattern>
+        <pattern>/cnslMng/openNpayHistoryPopup/**</pattern>
+    </excludes>
+</decorators>

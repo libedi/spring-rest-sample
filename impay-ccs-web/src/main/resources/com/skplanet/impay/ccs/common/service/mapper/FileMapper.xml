@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+	파일 Mapper
+	author : Sang jun, Park 
+ -->
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.FileMapper">
+
+	<!-- 파일테이블 등록 -->
+	<update id="insertAttchFile" parameterType="com.skplanet.impay.ccs.common.model.FileInfo">
+		<selectKey keyProperty="attchFileSeq" resultType="long" order="BEFORE">
+    		SELECT PKG_SEQ.FN_GET_SEQ('TN_ATTCH_FILE') FROM DUAL
+    	</selectKey>
+		INSERT	/* impay-ccs-web, common/FileMapper.xml, insertAttchFile, 파일테이블 등록, 2016-01-12 */
+		INTO	TN_ATTCH_FILE (
+				  ATTCH_FILE_SEQ
+				, FILE_CLF_CD
+				, FILE_NM
+				, REG_DT
+				, REGR
+				, UPLD_FILE_PATH
+				, UPLD_FILE_NM
+		) VALUES (
+				  #{attchFileSeq}
+				, #{fileClfCd}
+				, #{fileNm}
+				, SYSDATE
+				, #{regr}
+				, #{upldFilePath}
+				, #{upldFileNm}
+		)
+	</update>	
+	
+</mapper>

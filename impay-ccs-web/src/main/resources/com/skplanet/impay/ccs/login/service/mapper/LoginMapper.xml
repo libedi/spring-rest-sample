@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.CodeMapper">
+
+	<resultMap id="codeResultMap" type="com.skplanet.impay.ccs.common.model.Code">
+	  <result property="cd" column="CD"/>
+	  <result property="uprCd" column="UPR_CD"/>
+	  <result property="lv" column="LV"/>
+	  <result property="lClf" column="L_CLF"/>
+	  <result property="mClf" column="M_CLF"/>
+	  <result property="sClf" column="S_CLF"/>
+	  <result property="cdNm" column="CD_NM" />
+	</resultMap>
+ 
+	<!-- 공통코드조회 - 소분류 -->
+	<select id="selectSCodeByUprCd" parameterType="String" resultMap="codeResultMap">
+		<![CDATA[
+		SELECT  CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM	/* 코드명 */
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		  AND UPR_CD IN (
+				SELECT CD
+				FROM TC_COM
+				WHERE UPR_CD = #{uprCd} 
+			)
+		]]>
+	</select>
+		
+	<!-- 공통코드조회 - 중분류 -->
+	<select id="selectMCodeByUprCd" parameterType="String" resultMap="codeResultMap">
+		<![CDATA[
+		SELECT  CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM	/* 코드명 */
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		  AND UPR_CD = #{uprCd}
+		]]>
+	</select>
+    
+</mapper>

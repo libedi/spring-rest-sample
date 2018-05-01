@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 사용자 정보 관리 Mapper --> 
+<mapper namespace="com.skplanet.impay.ccs.uim.service.mapper.UserMngMapper">
+
+	<!-- 비밀번호 변경 -->
+	<update id="updatePwd" parameterType="com.skplanet.impay.ccs.uim.model.UserMngPwd">
+		UPDATE	/* impay-ccs-web, uim/UserMngMapper.xml, updatePwd, 비밀번호 변경, 2015-12-24 */
+				TN_USER
+		SET
+				PWD = #{pwd}
+				, LAST_PWD_CHG_DD = TO_CHAR(SYSDATE, 'YYYYMMDD')
+				, LAST_CHG_DT = SYSDATE
+				, LAST_CHGR = #{lastChgr}
+		WHERE	USER_SEQ = #{userSeq}
+	</update>
+	
+	<!-- 이용자명 조회 -->
+	<select id="selectUsername" parameterType="string" resultType="string">
+		SELECT	/* impay-ccs-web, uim/UserMngMapper.xml, selectUsername, 이용자명 조회, 2015-12-24 */
+				USER_NM
+		FROM	VN_USER_ITGR_INQRY
+		WHERE	SEQ = #{userSeq}
+	</select>
+	
+	<!-- 이용자 정보 조회 -->
+	<select id="selectUserInfo" parameterType="string" resultType="com.skplanet.impay.ccs.uim.model.UserMng">
+		SELECT	/* impay-ccs-web, uim/UserMngMapper.xml, selectUserInfo, 이용자 정보 조회, 2015-01-22 */
+				  USER_SEQ
+				, USER_ID
+				, PWD
+				, USER_NM
+				, CNTC_SEQ
+		FROM	TN_USER
+		WHERE	USER_SEQ = #{userSeq}
+	</select>
+    
+</mapper>

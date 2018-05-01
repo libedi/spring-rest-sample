@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.skplanet.impay.ccs.rpm.service.mapper.PayBackRcptMapper">    
+	<select id="selectPayBackRcptCount" parameterType="com.skplanet.impay.ccs.rpm.model.PayBackSearch" resultType="int">
+		SELECT	/* impay-ccs-web, rpm/PayBackRcptMapper.xml, selectPayBackRcptCount, 환불접수 목록 카운트, 2016-01-06 */ 
+				COUNT(*)
+		FROM
+				TN_CNSL_NPAY_ADD_PYBK CNAP
+				JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAP.PAY_MPHN_ID
+		WHERE	DEL_YN = 'N'
+			<if test='rcptStDt != null and !rcptStDt.equals("") and rcptEndDt != null and !rcptEndDt.equals("")'> /* 접수일 */		
+				AND CNAP.REG_DT BETWEEN TO_DATE(#{rcptStDt},'YYYY.MM.DD') AND TO_DATE(#{rcptEndDt},'YYYY.MM.DD')
+			</if>
+			<if test='reqStDt != null and !reqStDt.equals("") and reqEndDt != null and !reqEndDt.equals("")'> /* 접수일 */			
+				AND TO_DATE(PYBK_REQ_DD, 'YYYY.MM.DD') BETWEEN TO_DATE(#{reqStDt},'YYYY.MM.DD') AND TO_DATE(#{reqEndDt},'YYYY.MM.DD')
+			</if>
+			<if test='commcClf != null and !commcClf.equals("")'> /* 이통사 */		
+				AND CNAP.COMMC_CLF = #{commcClf} 
+			</if>
+			<if test='pybkTypCd != null and !pybkTypCd.equals("")'> /* 환불 구분 */		
+				AND PYBK_TYP_CD = #{pybkTypCd} 
+			</if>
+			<if test='phoneNo != null and !phoneNo.equals("")'> /* 휴대전화 번호 */		
+				AND PMI.MPHN_NO LIKE '%' || #{phoneNo} || '%'  						
+			</if>
+			<if test='name != null and !name.equals("")'> /* 이용자명 */		
+				AND CNAP.PAYR_NM LIKE '%' || #{name} || '%'  
+			</if>
+	</select>
+
+	<select id="selectPayBackRcptList" parameterType="com.skplanet.impay.ccs.rpm.model.PayBackSearch" resultType="com.skplanet.impay.ccs.rpm.model.PayBackRcpt">
+		SELECT /* impay-ccs-web, rpm/PayBackRcptMapper.xml, selectPayBackRcptList, 환불접수 목록 조회, 2016-01-06 */ 
+				PAGE_TABLE.*
+		FROM (  
+				SELECT ROWNUM AS RNUM, A.*
+				FROM (
+		                SELECT
+		                	   PYBK_RCPT_NO,
+		                       TO_CHAR(CNAP.REG_DT, 'YYYY.MM.DD') AS REG_DT, 
+		                       PYBK_REQ_DD, 
+		                       PYBK_TYP_CD, 
+		                       CNAP.COMMC_CLF, 
+		                       CNAP.PAY_MPHN_ID, 
+		                       REGR, 
+		                       PAY_AMT, 
+		                       BANK_CD, 
+		                       ACCT_NO,
+		                       CNAP.PAYR_NM, 
+		                       DPSTR_NM 
+		                 FROM  TN_CNSL_NPAY_ADD_PYBK CNAP
+							   JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAP.PAY_MPHN_ID
+		                 WHERE DEL_YN = 'N'
+							<if test='rcptStDt != null and !rcptStDt.equals("") and rcptEndDt != null and !rcptEndDt.equals("")'> /* 접수일 */		
+								AND CNAP.REG_DT BETWEEN TO_DATE(#{rcptStDt},'YYYY.MM.DD') AND TO_DATE(#{rcptEndDt},'YYYY.MM.DD')
+							</if>
+							<if test='reqStDt != null and !reqStDt.equals("") and reqEndDt != null and !reqEndDt.equals("")'> /* 접수일 */			
+								AND TO_DATE(PYBK_REQ_DD, 'YYYY.MM.DD') BETWEEN TO_DATE(#{reqStDt},'YYYY.MM.DD') AND TO_DATE(#{reqEndDt},'YYYY.MM.DD')
+							</if>
+							<if test='commcClf != null and !commcClf.equals("")'> /* 이통사 */		
+								AND CNAP.COMMC_CLF = #{commcClf} 
+							</if>
+							<if test='pybkTypCd != null and !pybkTypCd.equals("")'> /* 환불 구분 */		
+								AND PYBK_TYP_CD = #{pybkTypCd} 
+							</if>
+							<if test='phoneNo != null and !phoneNo.equals("")'> /* 휴대전화 번호 */		
+								AND PMI.MPHN_NO LIKE '%' || #{phoneNo} || '%'  						
+							</if>
+							<if test='name != null and !name.equals("")'> /* 이용자명 */
+								AND CNAP.PAYR_NM LIKE '%' || #{name} || '%'  
+							</if>	
+								ORDER BY PYBK_RCPT_NO DESC	
+						)A
+		        )PAGE_TABLE
+		WHERE RNUM BETWEEN #{pageParam.startRow} AND #{pageParam.endRow}
+	</select>
+	
+	<select id="selectPayBackRcptInfo" parameterType="String" resultType="com.skplanet.impay.ccs.rpm.model.PayBackRcpt">
+		SELECT 	/* impay-ccs-web, rpm/PayBackRcptMapper.xml, selectPayBackRcptInfo, 환불접수 목록 상세 조회, 2016-01-06 */ 
+				TO_CHAR(CNAP.REG_DT, 'YYYY.MM.DD') AS REG_DT, 
+                PYBK_REQ_DD, 
+                PYBK_TYP_CD, 
+                CNAP.COMMC_CLF, 
+                CNAP.PAY_MPHN_ID, 
+                REGR, 
+                PAY_AMT, 
+                BANK_CD, 
+                ACCT_NO, 
+                DPSTR_NM,
+                CNAP.PAYR_NM,
+				PMI.MPHN_NO
+       	FROM 	TN_CNSL_NPAY_ADD_PYBK CNAP
+			    JOIN TB_PAY_MPHN_INFO PMI ON PMI.PAY_MPHN_ID = CNAP.PAY_MPHN_ID
+ 		WHERE 	CNAP.PYBK_RCPT_NO = #{pybkRcptNo}
+	</select>
+	
+	<insert id="insertPayBackRcpt" parameterType="com.skplanet.impay.ccs.rpm.model.PayBackRcpt">
+    	<selectKey resultType="String" keyProperty="pybkRcptNo" order="BEFORE">
+			SELECT PKG_SEQ.FN_GET_SEQ('TN_CNSL_NPAY_ADD_PYBK') FROM DUAL
+		</selectKey>	
+		INSERT	/* impay-ccs-web, rpm/PayBackRcptMapper.xml, insertPayBackRcpt, 환불접수 신규등록, 2016-01-05 */ 
+		INTO 	TN_CNSL_NPAY_ADD_PYBK 
+				(
+				 PYBK_RCPT_NO,	/* 환불 접수 번호 */
+				 PYBK_TYP_CD,
+				 PYBK_REQ_DD,	/* 환불 접수 일자 */
+				 PAY_MPHN_ID,	/* 결제폰 ID */
+				 PAY_AMT,		/* 결제 금액 (환불 금액) */
+				 BANK_CD,		/* 은행코드 */
+				 BANK_NM,		/* 은행명 */
+				 DPSTR_NM,		/* 예금주 명 */
+				 PAYR_NM,		/* 고객 명 */
+				 ACCT_NO,		/* 계좌 번호 */
+				 COMMC_CLF,		/* 이통사 구분 */
+				 REG_DT,		/* 등록 일시 */
+				 REGR,			/* 등록자 */
+				 LAST_CHG_DT,	/* 최종 변경 일시 */
+				 LAST_CHGR		/* 최종 변경자 */
+				)
+		VALUES	(
+				 #{pybkRcptNo},
+				 #{pybkTypCd},
+				 #{pybkReqDd},
+				 #{payMphnId},
+				 #{payAmt},
+				 #{bankCd},
+				 #{bankNm},
+				 #{dpstrNm},
+				 #{payrNm, jdbcType=VARCHAR},
+				 #{acctNo},
+				 #{commcClf},
+				 TO_DATE(#{regDt}, 'YYYY.MM.DD'),
+				 #{regr},
+				 SYSDATE,
+				 #{lastChgr}
+				)	
+    </insert>
+    
+    <update id="deletePayBackRcpt" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch">
+    	UPDATE	/* impay-ccs-web, rpm/PayBackRcptMapper.xml, deletePayBackRcpt, 환불접수 CHECK 된 ROW 삭제여부 Y/N 업데이트, 2016-01-07 */
+    	 		TN_CNSL_NPAY_ADD_PYBK
+    	SET		
+    			DEL_YN = 'Y',	
+    			DEL_DT = SYSDATE,
+    			DEL_PROC = #{ccsEmployee}
+    	WHERE	 
+    		<if test="trdNos != null">
+				PYBK_RCPT_NO IN
+			<foreach collection="trdNos" item="trdNo" open="(" separator="," close=")">
+				#{trdNo}
+			</foreach>
+			</if>
+    </update>
+</mapper>

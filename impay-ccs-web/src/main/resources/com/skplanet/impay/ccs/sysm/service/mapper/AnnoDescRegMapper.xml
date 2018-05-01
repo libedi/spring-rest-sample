@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+	고객센터 공지사항 Mapper
+	author : Sang jun, Park 
+ -->
+<mapper namespace="com.skplanet.impay.ccs.sysm.service.mapper.AnnoDescRegMapper">
+
+	<!-- 고객센터 공지사항 공통 조회 쿼리 -->
+	<sql id="commonConditionCnslBoardSql">
+		<if test='clctBordSeq != null and !clctBordSeq.equals("")'>
+		AND TCB.CLCT_BORD_SEQ = #{clctBordSeq}
+		</if>
+		<if test='stDate != null and !stDate.equals("")'>
+		<![CDATA[
+		AND TCB.REG_DT >= TO_DATE(#{stDate}, 'YYYY.MM.DD')
+		]]>
+		</if>
+		<if test='endDate != null and !endDate.equals("")'>
+		<![CDATA[
+		AND TCB.REG_DT < TO_DATE(#{endDate}, 'YYYY.MM.DD') + 1
+		]]>
+		</if>
+		<if test='bordClfCd != null and !bordClfCd.equals("")'>
+		AND TCB.BORD_CLF_CD = #{bordClfCd}
+		</if>
+		<if test='srchText != null and !srchText.equals("")'>
+		AND ( (TCB.TITL LIKE '%' || #{srchText} || '%') OR (TCB.CTNT LIKE '%' || #{srchText} || '%') )
+		</if>
+	</sql>
+	
+	<!-- 고객센터 공지사항 리스트 조회 -->
+	<select id="getNotiBoardList" parameterType="com.skplanet.impay.ccs.sysm.model.AnnoDescRegSearch" resultType="com.skplanet.impay.ccs.sysm.model.AnnoDescReg">
+		SELECT	/* impay-ccs-web, sysm/AnnoDescRegMapper.xml, getNotiBoardList, 고객센터 공지사항 리스트 조회, 2015-12-28 */
+				PAGE_TABLE.*
+		FROM(
+				SELECT	ROWNUM AS RNUM, A.*
+				FROM (
+						SELECT
+								TCB.CLCT_BORD_SEQ
+						      , TCB.BORD_CLF_CD
+						      , TCB.TITL
+						      , TCB.TITL_BLD_YN
+						      , TCB.CTNT
+						      , TCB.ATTCH_FILE_SEQ
+						      , TCB.USE_YN
+						      , TO_CHAR(TCB.REG_DT, 'YY.MM.DD HH24:MI:SS') AS REG_DT
+						      , TCB.REGR
+						      , TO_CHAR(TCB.LAST_CHG_DT, 'YY.MM.DD HH24:MI:SS') AS LAST_CHG_DT
+						      , TCB.LAST_CHGR
+						      , CASE
+						      		WHEN TCB.REG_DT >= TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD'),'YYYYMMDD')-3 THEN 'Y'
+						      		ELSE 'N'
+						      	END NEW_YN
+						FROM 	TN_CNSL_BORD	TCB
+						WHERE 	TCB.USE_YN = 'Y'
+						<include refid="commonConditionCnslBoardSql"/>
+						ORDER BY TCB.CLCT_BORD_SEQ DESC
+					) A
+			)PAGE_TABLE		
+		WHERE RNUM BETWEEN #{pageParam.startRow} AND #{pageParam.endRow}
+	</select>
+	
+	<select id="getNotiBoardListCount" parameterType="com.skplanet.impay.ccs.sysm.model.AnnoDescRegSearch" resultType="int">
+		SELECT	/* impay-ccs-web, sysm/AnnoDescRegMapper.xml, getNotiBoardListCount, 공지사항 목록 카운트, 2015-12-31 */
+				COUNT(*)
+		FROM 	TN_CNSL_BORD	TCB
+		WHERE 	TCB.USE_YN = 'Y'
+		<include refid="commonConditionCnslBoardSql"/>
+	</select>
+	
+	<select id="selectAnnoDescInfo" parameterType="java.lang.Long" resultType="com.skplanet.impay.ccs.sysm.model.AnnoDescReg">
+		SELECT	/* impay-ccs-web, sysm/AnnoDescRegMapper.xml, selectAnnoDescInfo, 공지사항 상세내역, 2015-12-31 */
+				CLCT_BORD_SEQ,
+				TO_CHAR(REG_DT,'YY.MM.DD HH24:MI:SS') AS REG_DT,
+				TITL,
+				BORD_CLF_CD,
+				REGR,
+				TITL_BLD_YN,
+				CTNT
+		FROM 	TN_CNSL_BORD
+		WHERE 	CLCT_BORD_SEQ = #{clctBordSeq}
+	</select>
+	
+	<insert id="insertAnnoDesc" parameterType="com.skplanet.impay.ccs.sysm.model.AnnoDescReg">
+		<selectKey resultType="java.lang.Long" keyProperty="clctBordSeq" order="BEFORE">
+			SELECT PKG_SEQ.FN_GET_SEQ('TN_CNSL_BORD') FROM DUAL
+		</selectKey>	
+		INSERT	/* impay-ccs-web, sysm/AnnoDescRegMapper.xml, insertAnnoDesc, 공지사항 등록, 2016-01-13 */
+		INTO	TN_CNSL_BORD
+				(
+					CLCT_BORD_SEQ,	/* 고객센터 게시판 순번 */
+					BORD_CLF_CD,	/* 게시판 구분 코드 */
+					TITL,			/* 게시판 제목 */
+					TITL_BLD_YN,	/* 제목 강조 여부 (Y,N) */
+					CTNT,			/* 게시판 내용 */
+					USE_YN,			/* 사용 여부(Y,N)  */
+					REG_DT,			/* 등록 일시 */
+					REGR,			/* 등록자 */
+					LAST_CHG_DT,	/* 최종 변경 일시 */
+					LAST_CHGR		/* 최종 변경자 */
+				)
+		values	(
+					#{clctBordSeq},
+					#{bordClfCd},
+					#{titl},
+					#{titlBldYn},
+					#{ctnt},
+					'Y',
+					SYSDATE,
+					#{regr},
+					SYSDATE,
+					#{lastChgr}
+				)		
+	</insert>
+	
+	<update id="updateAnnoDesc" parameterType="com.skplanet.impay.ccs.sysm.model.AnnoDescReg">
+		UPDATE	/* impay-ccs-web, sysm/AnnoDescRegMapper.xml, updateAnnoDesc, 공지사항 수정, 2016-01-13 */
+				TN_CNSL_BORD
+		SET
+				TITL = #{titl},
+				CTNT = #{ctnt},
+				BORD_CLF_CD = #{bordClfCd},
+				TITL_BLD_YN = #{titlBldYn},
+				LAST_CHGR = #{lastChgr},
+				LAST_CHG_DT = SYSDATE
+		WHERE	CLCT_BORD_SEQ = #{clctBordSeq}
+	</update>
+	
+	
+</mapper>

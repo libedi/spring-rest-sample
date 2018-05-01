@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.skplanet.impay.ccs.framework.security.service.mapper.CustomUserDetailsMapper">
+
+	<select id="selectUserByUsername" parameterType="String" resultType="com.skplanet.impay.ccs.framework.security.model.CustomUserDetails">
+	
+		SELECT 
+              a.user_seq,
+              a.user_id,
+              a.pwd AS "password",
+              a.mst_yn,
+              a.user_nm AS "userNm",        
+              a.sno AS "sno",
+              a.cntc_seq AS "cntcSeq",
+              a.adm_typ_cd AS "admTypCd",
+              a.itgr_adj_auth_yn AS "itgrAdjAuthYn",
+              a.pwd_err_cnt AS "pwdErrCnt",
+              a.sess_id AS "sessId",
+              a.use_yn AS "useYn",
+              b.email
+        FROM tn_user a
+        LEFT JOIN tn_cntc_info b ON b.cntc_seq = a.cntc_seq
+        WHERE UPPER(user_id) = UPPER(#{username})
+
+	</select>
+	
+	<update id="updateUserPwdErrCnt" parameterType="String">
+		<![CDATA[
+			UPDATE /*impay-bos-web, framework/security/CustomUserDetailsMapper.xml, updateUserPwdErrCnt, 관리자 비밀번호 오류횟수 수정, 2015-12-22*/
+	        	   TN_USER 
+	       	   SET PWD_ERR_CNT = NVL(PWD_ERR_CNT, 0) + 1
+	         WHERE UPPER(user_id) = UPPER(#{username})
+        ]]>
+    </update>
+    
+    <update id="updateUserPwdErrCntInit" parameterType="String">
+		<![CDATA[
+			UPDATE /*impay-ccs-web, framework/security/CustomUserDetailsMapper.xml, updateUserPwdErrCntInit, 관리자 비밀번호 오류횟수 초기화, 2015-12-22*/
+	        	tn_user 
+	       	SET 
+	       		pwd_err_cnt = 0    
+	        WHERE 
+	        	UPPER(user_id) = UPPER(#{username})
+        ]]>
+    </update>
+    
+    <update id="updateUserPwdErrCntAndIdStop" parameterType="String">
+		<![CDATA[
+			UPDATE /*impay-ccs-web, framework/security/CustomUserDetailsMapper.xml, updateUserPwdErrCntAndIdStop, 관리자 비밀번호 오류횟수 수정, 2015-12-22*/
+	        	tn_user 
+	       	SET 
+	       		pwd_err_cnt = (SELECT pwd_err_cnt FROM TN_USER where UPPER(user_id) = UPPER(#{username})) + 1, 
+	       		use_yn			='N',
+       			last_chg_dt 	= sysdate, 
+            	last_chgr       = 'system',
+      			use_stop_dd     = TO_CHAR(sysdate, 'yyyyMMdd')   
+	        WHERE 
+	        	UPPER(user_id) = UPPER(#{username})
+        ]]>
+    </update>
+    
+</mapper>

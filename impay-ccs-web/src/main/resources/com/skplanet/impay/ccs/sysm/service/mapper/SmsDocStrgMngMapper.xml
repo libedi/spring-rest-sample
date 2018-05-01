@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.skplanet.impay.ccs.sysm.service.mapper.SmsDocStrgMngMapper">
+	<select id="getSmsDocCount" resultType="int">
+		SELECT /* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, getSmsDocCount, SMS 문서보관함 목록 카운트, 2016-01-14 */
+				COUNT(*)
+		FROM TN_CNSL_CHAR_STRG_DTL
+	</select>
+	
+	<select id="getSmsDocList" resultType="com.skplanet.impay.ccs.sysm.model.SmsDocStrgMng">
+		SELECT /* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, getSmsDocList, SMS 문서보관함 목록 조회, 2016-01-14 */
+				CHAR_STRG_NO,
+				CHAR_CTNT,
+				REG_DT,
+				REGR
+		FROM 	TN_CNSL_CHAR_STRG_DTL
+	  	ORDER BY CHAR_STRG_NO DESC
+	</select>
+	
+	<select id="getSmsWord" parameterType="String" resultType="com.skplanet.impay.ccs.sysm.model.SmsDocStrgMng">
+		SELECT /* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, getSmsWord, 선택한 문구 조회, 2016-01-14 */
+				CHAR_STRG_NO,
+				CHAR_CTNT,
+				REG_DT,
+				REGR
+		FROM 	TN_CNSL_CHAR_STRG_DTL
+		WHERE	CHAR_STRG_NO = #{charStrgNo}		
+	</select>
+	
+	<insert id="insertSmsWord" parameterType="com.skplanet.impay.ccs.sysm.model.SmsDocStrgMng">
+		<selectKey resultType="String" keyProperty="charStrgNo" order="BEFORE">
+			SELECT PKG_SEQ.FN_GET_SEQ('TN_CNSL_CHAR_STRG_DTL') FROM DUAL
+		</selectKey>	
+		INSERT	/* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, insertSmsWord, SMS 문구 등록, 2016-01-15 */	
+		INTO	TN_CNSL_CHAR_STRG_DTL
+				(
+					CHAR_STRG_NO,/*문자 보관 번호 */
+					CHAR_CTNT,	 /* 문자 내용 */
+					REG_DT,		 /* 등록 일시 */
+					REGR		 /* 등록자 */
+				)
+		VALUES	(	
+					#{charStrgNo},
+					#{charCtnt},
+					SYSDATE,
+					#{regr}
+				)
+	</insert>
+	
+	<update id="updateSmsWord" parameterType="com.skplanet.impay.ccs.sysm.model.SmsDocStrgMng">
+		UPDATE	/* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, updateSmsWord, SMS 문구 수정, 2016-01-15 */
+				TN_CNSL_CHAR_STRG_DTL
+		SET		
+				CHAR_CTNT = #{charCtnt},
+				REGR	  = #{regr}
+		WHERE	CHAR_STRG_NO = #{charStrgNo}	
+	</update>
+	
+	<delete id="deleteSmsWord" parameterType="com.skplanet.impay.ccs.sysm.model.SmsDocStrgMng">
+		DELETE	/* impay-ccs-web, sysm/SmsDocStrgMngMapper.xml, deleteSmsWord, SMS 문구 삭제, 2016-01-15 */
+		FROM	TN_CNSL_CHAR_STRG_DTL
+		WHERE 	CHAR_STRG_NO = #{charStrgNo}
+	
+	
+	</delete>
+</mapper>

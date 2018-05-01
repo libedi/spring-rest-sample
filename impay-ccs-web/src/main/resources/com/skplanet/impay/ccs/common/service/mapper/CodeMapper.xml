@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.CodeMapper">
+
+	<cache 
+		eviction="LRU"
+        flushInterval="60000"
+        size="512"
+        readOnly="true" />
+        
+	<!-- 공통코드조회 - 소분류 -->
+	<select id="selectSCodeByUprCd" parameterType="String" resultType="com.skplanet.impay.ccs.common.model.Code">
+		<![CDATA[
+		SELECT  CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM,	/* 코드명 */
+		        PREP_WORD_1,	
+		        USE_YN
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		  AND UPR_CD IN (
+				SELECT CD
+				FROM TC_COM
+				WHERE UPR_CD = #{uprCd} 
+			)
+		]]>
+	</select>
+	
+		
+	<!-- 공통코드조회 -->
+	<select id="selectCodeByUprCd" parameterType="String" resultType="com.skplanet.impay.ccs.common.model.Code">
+		<![CDATA[
+		SELECT  CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM,	/* 코드명 */
+		        PREP_WORD_1,	
+		        USE_YN
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		  AND UPR_CD = #{uprCd}
+		]]>
+	</select>
+	
+	<!-- 공통코드조회 -->
+	<select id="selectSCodeByUprCds" parameterType="List" resultType="com.skplanet.impay.ccs.common.model.Code">
+		<![CDATA[
+		SELECT  CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM,	/* 코드명 */
+		        PREP_WORD_1,	
+		        USE_YN
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		  AND UPR_CD IN 
+		  
+		  <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+        
+		]]>
+	</select>
+	
+	<!-- 공통코드조회 -->
+	<select id="selectCode" parameterType="string" resultType="com.skplanet.impay.ccs.common.model.Code">
+		SELECT  /* impay-ccs-web, rpm/Code.xml, selectCnslCpTjurListByPaging, 이관 접수 리스트 조회 (페이징 처리), 2016-02-02 */
+				CD,		/* 코드 */
+		        UPR_CD, /* 상위코드 */
+		        LV,     /* 레벨 */
+		        L_CLF,  /* 대분류 */
+		        M_CLF,  /* 중분류 */
+		        S_CLF,  /* 소분류 */
+		        CD_NM,	/* 코드명 */
+		        PREP_WORD_1,	
+		        USE_YN
+		FROM  TC_COM
+		WHERE USE_YN = 'Y'
+		AND CD = #{cd}
+	</select>
+	
+</mapper>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<white-url>
+	<src>
+		<domain name="http://www.skplanet.com" desc="SK Planet">
+			<pattern>http://www.skplanet.com*</pattern>
+		</domain>
+	</src>
+</white-url>

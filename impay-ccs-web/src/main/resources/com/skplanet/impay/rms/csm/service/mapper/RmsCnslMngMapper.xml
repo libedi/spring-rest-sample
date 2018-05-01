@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 상담 관리 (RMS) Mapper --> 
+<mapper namespace="com.skplanet.impay.rms.csm.service.mapper.RmsCnslMngMapper">
+
+	<!-- 현재시간 조회 -->
+	<select id="selectSysdate" resultType="date">
+		SELECT /*impay-ccs-web, rms/RmsCnslMngMapper.xml, selectSysdate, [RMS 공통] 현재시간 조회, 2016-03-02*/
+			SYSDATE
+		FROM DUAL
+	</select>
+
+	<!-- 청구/수납(누적) 목록 조회 -->
+	<select id="selectChrgRcptAccList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsChrgRcptAcc">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectChrgRcptAccList, [청구/수납(누적)] 목록 조회, 2016-02-03*/
+		SELECT A.PAYR_SEQ
+		     , A.COMMC_CLF
+		     , M.MPHN_NO
+		     , NVL(SUM(A.BILL_AMT), 0) AS BILL_AMT
+		     , NVL(SUM(A.RCPT_AMT), 0) AS RCPT_AMT
+		     , NVL(SUM(A.NPAY_AMT), 0) AS NPAY_AMT
+		FROM TP_RCPT_MEP_PER_TRD_DTL A
+		   , TB_PAY_MPHN_INFO M
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		  AND A.CNCL_YN = 'N'
+		  AND A.RCPT_CLF = 'RA'
+		  AND A.PAY_MPHN_ID = M.PAY_MPHN_ID
+		GROUP BY A.PAYR_SEQ, A.COMMC_CLF, M.MPHN_NO
+		ORDER BY A.COMMC_CLF, M.MPHN_NO
+	</select>
+	
+	<!-- 청구/수납(월별) 목록 조회 -->
+	<select id="selectChrgRcptMonList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsChrgRcptMon">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectChrgRcptMonList, [청구/수납(월별)] 목록 조회, 2016-02-04*/
+		SELECT A.PAYR_SEQ
+		     , DECODE(A.PAY_YM, NULL,NULL, SUBSTR(A.PAY_YM,1,4)||'.'||SUBSTR(A.PAY_YM,5,2)) AS PAY_YM
+		     , A.COMMC_CLF
+		     , M.MPHN_NO
+		     , NVL(SUM(A.BILL_AMT), 0) AS BILL_AMT
+		     , NVL(SUM(A.RCPT_AMT), 0) AS RCPT_AMT
+		     , NVL(SUM(A.NPAY_AMT), 0) AS NPAY_AMT
+		FROM TP_RCPT_MEP_PER_TRD_DTL A
+		   , TB_PAY_MPHN_INFO M
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		  AND A.CNCL_YN = 'N'
+		  AND A.RCPT_CLF = 'RA'
+		  AND A.PAY_MPHN_ID = M.PAY_MPHN_ID
+		GROUP BY GROUPING SETS ((A.PAYR_SEQ, A.PAY_YM, A.COMMC_CLF, M.MPHN_NO), ())
+		ORDER BY A.PAY_YM DESC, A.COMMC_CLF, M.MPHN_NO
+	</select>
+	
+	<!-- 수납 회차별 미납횟수 목록 조회 -->
+	<select id="selectNpayCntList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsDftNum">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectNpayCntList, [미납횟수(회차별)] 목록 조회, 2016-02-05*/
+		SELECT A.PAYR_SEQ
+		     , A.COMMC_CLF
+		     , A.MPHN_NO
+		     , A.MNTS3_NPAY_CNT
+		     , A.MNTS6_NPAY_CNT
+		     , A.MNTS12_NPAY_CNT
+		FROM PN_NPAY_CNT A
+		WHERE A.P_KEY = DECODE(MOD(TO_CHAR(SYSDATE,'MM'),3),'0','3',MOD(TO_CHAR(SYSDATE,'MM'),3))
+		  AND A.PAYR_SEQ = #{payrSeq}
+		ORDER BY A.COMMC_CLF, A.MPHN_NO
+	</select>
+	
+	<!-- 미납금액 상세 조회 -->
+	<select id="selectNpayAmtDetail" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsDftNum">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectNpayAmtDetail, [미납횟수(회차별)] 상세 조회, 2016-02-05*/
+		SELECT NVL(SUM(A.BILL_AMT), 0) AS BILL_AMT
+		     , NVL(SUM(A.RCPT_AMT), 0) AS RCPT_AMT
+		     , NVL(SUM(A.NPAY_AMT), 0) AS NPAY_AMT
+		FROM TP_RCPT_MEP_PER_TRD_DTL A
+		   , TB_PAY_MPHN_INFO M
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		<choose>
+			<when test="mnts == 'MNTS3'">AND A.PAY_YM >= TO_CHAR(ADD_MONTHS(SYSDATE, -5), 'YYYYMM')</when>
+			<when test="mnts == 'MNTS6'">AND A.PAY_YM >= TO_CHAR(ADD_MONTHS(SYSDATE, -8), 'YYYYMM')</when>
+			<when test="mnts == 'MNTS12'">AND A.PAY_YM >= TO_CHAR(ADD_MONTHS(SYSDATE, -14), 'YYYYMM')</when>
+			<otherwise>AND 1 = 2 /* mnts is invalid */</otherwise>
+		</choose>
+		  AND A.PAY_YM &lt;= TO_CHAR(ADD_MONTHS(SYSDATE, -3), 'YYYYMM')
+		  AND A.PAY_MPHN_ID = M.PAY_MPHN_ID
+		  AND M.SRCH_MPHN_NO = PKG_CRYPTO.FN_ENCRYPT(#{mphnNo})
+		  AND M.MPHN_NO = #{mphnNo}
+		  AND A.RCPT_CLF = 'RA'
+	</select>
+	
+	<!-- RM 차단/해제 목록 조회 -->
+	<select id="selectRmBlkReliefList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsRmBlkReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectRmBlkReliefList, [RM 차단/해제 등록] RM 차단/해제 목록 조회, 2016-02-12*/
+		SELECT A.PAYR_SEQ
+		     , A.MPHN_NO
+		     , A.BLK_RELIEF_CD
+		     , AR.CD_NM AS BLK_RELIEF_NM
+		     , CASE WHEN (SYSDATE BETWEEN A.ST_DT AND A.ED_DT) THEN 'R' ELSE 'B' END AS APPLY_STATUS
+		     , TO_CHAR(A.ST_DT, 'YYYY.MM.DD HH24:MI:SS') AS ST_DT
+		     , TO_CHAR(A.ED_DT, 'YYYY.MM.DD HH24:MI:SS') AS ED_DT
+		     , A.RELIEF_CLF_CD
+		     , A.RELS_RSN_CD
+		     , A.RMK
+		     , TO_CHAR(A.INPT_DT, 'YYYY.MM.DD HH24:MI:SS') AS INPT_DT
+		     , IU.USER_NM AS INPT_NM
+		     , TO_CHAR(A.UPDT_DT, 'YYYY.MM.DD HH24:MI:SS') AS UPDT_DT
+		     , UU.USER_NM AS UPDT_NM
+		FROM TN_RM_BLK_RELIEF_CUST A
+		LEFT OUTER JOIN TC_COM AR ON (A.BLK_RELIEF_CD = AR.CD)
+		LEFT OUTER JOIN TN_USER IU ON (A.INPT_ID = IU.USER_ID)
+		LEFT OUTER JOIN TN_USER UU ON (A.UPDT_ID = UU.USER_ID)
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		AND SYSDATE BETWEEN A.ST_DT AND A.ED_DT
+		ORDER BY A.ST_DT DESC
+	</select>
+	
+	<!-- 현재 진행중인 RM 해제 목록 조회 -->
+	<select id="selectCurrentRmReliefList" parameterType="com.skplanet.impay.rms.csm.model.RmsRmBlkReliefReg" resultType="com.skplanet.impay.rms.csm.model.RmsRmBlkReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectCurrentRmReliefList, [RM 차단/해제 등록] 현재 진행중인 RM 해제 목록 조회, 2016-02-16*/
+		SELECT ROWIDTOCHAR(A.ROWID) AS ROW_ID
+		     , A.PAYR_SEQ
+		     , A.MPHN_NO
+		     , A.BLK_RELIEF_CD
+		     , TO_CHAR(A.ST_DT, 'YYYY.MM.DD HH24:MI:SS') AS ST_DT
+		     , TO_CHAR(A.ED_DT, 'YYYY.MM.DD HH24:MI:SS') AS ED_DT
+		     , A.RELIEF_CLF_CD
+		     , A.RELS_RSN_CD
+		     , A.RMK
+		FROM TN_RM_BLK_RELIEF_CUST A
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		  AND A.BLK_RELIEF_CD = #{blkReliefCd}
+		  AND SYSDATE BETWEEN A.ST_DT AND A.ED_DT
+	</select>
+	
+	<!-- RM 해제 등록 -->
+	<insert id="insertRmBlkReliefCust" parameterType="com.skplanet.impay.rms.csm.model.RmsRmBlkReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, insertRmBlkReliefCust, [RM 차단/해제 등록] RM 해제 등록, 2016-02-16*/
+		INSERT INTO TN_RM_BLK_RELIEF_CUST (
+			PAYR_SEQ,
+			MPHN_NO,
+			BLK_RELIEF_CD,
+			ST_DT,
+			ED_DT,
+			RELIEF_CLF_CD,
+			RELS_RSN_CD,
+			RMK,
+			INPT_DT,
+			INPT_ID
+		) VALUES (
+			#{payrSeq},
+			#{mphnNo},
+			#{blkReliefCd},
+			TO_DATE(#{stDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			TO_DATE(#{edDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			#{reliefClfCd},
+			#{relsRsnCd},
+			#{rmk},
+			SYSDATE,
+			#{inptId}
+		)
+	</insert>
+	
+	<!-- RM 차단 -->
+	<update id="updateRmBlkReliefCust" parameterType="com.skplanet.impay.rms.csm.model.RmsRmBlkReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, updateRmBlkReliefCust, [RM 차단/해제 등록] RM 차단, 2016-02-16*/
+		UPDATE TN_RM_BLK_RELIEF_CUST SET
+			ED_DT = TO_DATE(#{edDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			RMK = #{rmk},
+			UPDT_DT = SYSDATE,
+			UPDT_ID = #{updtId}
+		WHERE ROWID = CHARTOROWID(#{rowId})
+	</update>
+	
+	<!-- 불량고객 차단 목록 조회 -->
+	<select id="selectFraudBlkList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsFraudReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectFraudBlkList, [불량고객 해제 등록] 불량고객 차단 목록 조회, 2016-02-12*/
+		SELECT A.PAYR_SEQ
+		     , A.FRAUD_CLF_CD
+		     , AR.CD_NM AS FRAUD_CLF_NM
+		     , TO_CHAR(A.ST_DT, 'YYYY.MM.DD HH24:MI:SS') AS ST_DT
+		     , TO_CHAR(A.ED_DT, 'YYYY.MM.DD HH24:MI:SS') AS ED_DT
+		     , A.RMK
+		     , TO_CHAR(A.INPT_DT, 'YYYY.MM.DD HH24:MI:SS') AS INPT_DT
+		     , IU.USER_NM AS INPT_NM
+		     , TO_CHAR(A.UPDT_DT, 'YYYY.MM.DD HH24:MI:SS') AS UPDT_DT
+		     , UU.USER_NM AS UPDT_NM
+		FROM TN_FRAUD_CUST A
+		LEFT OUTER JOIN TC_COM AR ON (A.FRAUD_CLF_CD = AR.CD)
+		LEFT OUTER JOIN TN_USER IU ON (A.INPT_ID = IU.USER_ID)
+		LEFT OUTER JOIN TN_USER UU ON (A.UPDT_ID = UU.USER_ID)
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		  AND SYSDATE BETWEEN A.ST_DT AND A.ED_DT
+	</select>
+	
+	<!-- 불량고객 차단중인 건 조회 -->
+	<select id="selectCurrentFraudBlk" parameterType="com.skplanet.impay.rms.csm.model.RmsFraudReliefReg" resultType="com.skplanet.impay.rms.csm.model.RmsFraudReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectCurrentFraudBlk, [불량고객 해제 등록] 불량고객 차단중인 건 조회, 2016-02-17*/
+		SELECT ROWIDTOCHAR(A.ROWID) AS ROW_ID
+		     , A.PAYR_SEQ
+		     , A.FRAUD_CLF_CD
+		     , TO_CHAR(A.ST_DT, 'YYYY.MM.DD HH24:MI:SS') AS ST_DT
+		     , TO_CHAR(A.ED_DT, 'YYYY.MM.DD HH24:MI:SS') AS ED_DT
+		     , A.RMK
+		FROM TN_FRAUD_CUST A
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		  AND SYSDATE BETWEEN A.ST_DT AND A.ED_DT
+	</select>
+	
+	<!-- 불량고객 해제 -->
+	<update id="updateFraudCust" parameterType="com.skplanet.impay.rms.csm.model.RmsFraudReliefReg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, updateRmBlkReliefCust, [불량고객 해제 등록] 불량고객 해제, 2016-02-17*/
+		UPDATE TN_FRAUD_CUST SET
+			ED_DT = TO_DATE(#{edDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			RELS_RSN_CD = #{relsRsnCd},
+			RMK = #{rmk},
+			UPDT_DT = SYSDATE,
+			UPDT_ID = #{updtId}
+		WHERE ROWID = CHARTOROWID(#{rowId})
+	</update>
+	
+	<!-- 가맹점B/L 목록 조회 -->
+	<select id="selectCpBLInqList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsCpBLInq">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectCpBLInqList, [가맹점B/L 조회] 목록 조회, 2016-02-11*/
+		SELECT A.VAL_CLF
+		     , A.VAL
+		     , A.CP_CLF
+		     , A.CP_ID
+		     , DECODE(A.CP_CLF, 'E', E.ENTP_NM, 'G', G.GRP_NM, 'S', S.PAY_SVC_NM) AS CP_NM
+		     , A.RMK
+		     , A.USE_YN
+		     , TO_CHAR(A.INPT_DT, 'YYYY.MM.DD HH24:MI:SS') AS INPT_DT
+		     , U.USER_NM AS INPT_NM
+		FROM TN_NPAY_CP_CUST A
+		LEFT OUTER JOIN TB_ENTP_INFO   E ON (A.CP_CLF = 'E' AND A.CP_ID = E.ENTP_ID)
+		LEFT OUTER JOIN TN_CP_GRP_INFO G ON (A.CP_CLF = 'G' AND A.CP_ID = G.CP_GRP_ID)
+		LEFT OUTER JOIN TB_CP_PAY_SVC  S ON (A.CP_CLF = 'S' AND A.CP_ID = S.CP_CD)
+		LEFT OUTER JOIN TN_USER U ON (A.INPT_ID = U.USER_ID)
+		WHERE (A.VAL = #{payrSeq} OR A.VAL = #{custMphnNo})
+		  AND A.REG_TYP = 'MR'
+		  AND A.USE_YN = 'Y'
+		ORDER BY A.INPT_DT DESC
+	</select>
+	
+	<!-- RM 변경이력 목록 조회 -->
+	<select id="selectRmChangeHisList" parameterType="com.skplanet.impay.ccs.csm.model.CnslSearch" resultType="com.skplanet.impay.rms.csm.model.RmsRmChangeHis">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, selectRmChangeHisList, [RM 변경이력] 목록 조회, 2016-02-12*/
+		SELECT A.PAYR_SEQ
+		     , A.MPHN_NO
+		     , A.CUST_INFO_CHG_CD
+		     , A.BLK_RELS_CLF
+		     , A.CHG_RSN_CD
+		     , A.RMK
+		     , TO_CHAR(A.INPT_DT, 'YYYY.MM.DD HH24:MI:SS') AS INPT_DT
+		     , IU.USER_NM AS INPT_NM
+		FROM TN_CUST_CHG A
+		LEFT OUTER JOIN TN_USER IU ON (A.INPT_ID = IU.USER_ID)
+		WHERE A.PAYR_SEQ = #{payrSeq}
+		ORDER BY A.SEQ_NO DESC
+	</select>
+	
+	<!-- RM 변경이력 등록 -->
+	<insert id="insertCustChg" parameterType="com.skplanet.impay.rms.csm.model.RmsCustChg">
+		/*impay-ccs-web, csm/rms/RmsCnslMngMapper.xml, insertCustChg, RM 변경이력 등록, 2016-02-16*/
+		INSERT INTO TN_CUST_CHG (
+			SEQ_NO,
+			PAYR_SEQ,
+			MPHN_NO,
+			REG_CLF,
+			CUST_INFO_CHG_CD,
+			BLK_RELS_CLF,
+			ST_DT,
+			ED_DT,
+			CHG_RSN_CD,
+			RMK,
+			INPT_DT,
+			INPT_ID
+		) VALUES (
+			SEQ_TN_CUST_CHG.NEXTVAL,
+			#{payrSeq},
+			#{mphnNo},
+			#{regClf},
+			#{custInfoChgCd},
+			#{blkRelsClf},
+			TO_DATE(#{stDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			TO_DATE(#{edDt}, 'YYYY.MM.DD HH24:MI:SS'),
+			#{chgRsnCd},
+			#{rmk},
+			SYSDATE,
+			#{inptId}
+		)
+	</insert>
+
+</mapper>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.CpSearchMapper">
+
+	<select id="selectCpCount" parameterType="com.skplanet.impay.ccs.common.model.CpSearch" resultType="int">
+		SELECT	/*impay-ccs-web, common/CpSearchMapper.xml, selectCpCount, 가맹점 목록 카운트, 2016-04-20 */ 
+			COUNT(*)
+		FROM TB_CP_PAY_SVC TCPS /*가맹점 결제 서비스 정보*/
+		LEFT JOIN TB_ENTP_INFO TEI ON TEI.ENTP_ID = TCPS.ADJ_ENTP_ID /* 정산법인 정보*/
+		LEFT JOIN TN_CP_GRP_REL TCGR ON TCGR.CP_CD = TCPS.CP_CD /*가맹점 그룹 연관 내역*/
+		LEFT JOIN TN_CP_GRP_INFO TCGI ON TCGI.CP_GRP_ID = TCGR.CP_GRP_ID /*가맹점 그룹 정보*/
+		WHERE 1 = 1
+		<if test="searchClf != null and searchClf != '' ">
+			<choose>
+				<when test="searchClf == 'cpNm' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND UPPER(TCPS.PAY_SVC_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+					</if>
+				</when>
+				<when test="searchClf == 'cpCd' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND TCPS.CP_CD LIKE '%' || #{searchWord} || '%'
+					</if>
+				</when>
+				<when test="searchClf == 'groupNm' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND UPPER(TCGI.GRP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+					</if>
+				</when>
+				<when test="searchClf == 'groupCd' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND TCGI.CP_GRP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+					</if>
+				</when>
+				<when test="searchClf == 'entpId' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND TEI.ENTP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+					</if>
+				</when>
+				<when test="searchClf == 'entpNm' ">
+					<if test="searchWord != null and searchWord !='' ">
+						AND UPPER(TEI.ENTP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+					</if>
+				</when>
+				<otherwise>
+					<if test="searchWord != null and searchWord != '' ">
+						AND (UPPER(TCPS.PAY_SVC_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+								OR TCPS.CP_CD LIKE '%' || #{searchWord} || '%'
+								OR UPPER(TCGI.GRP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+								OR TCGI.CP_GRP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+								OR TEI.ENTP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+								OR UPPER(TEI.ENTP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%')
+					</if>
+				</otherwise>
+			</choose>
+		</if>
+		<!-- 가맹점상태 -->
+		<if test="cpStatus != null and cpStatus !='' ">
+			AND TCPS.STAT_CD = #{cpStatus}
+		</if>
+	</select>
+	
+	<select id="selectCpList" parameterType="com.skplanet.impay.ccs.common.model.CpSearch" resultType="com.skplanet.impay.ccs.common.model.CpList">
+		SELECT	/*impay-ccs-web, common/CpSearchMapper.xml, selectCpList, 가맹점 목록 조회, 2016-04-20 */ 
+			PAGE_TABLE.*
+		FROM
+			(
+				SELECT	ROWNUM AS IDX , RAW_DATA.* 
+        		FROM
+					(
+						SELECT 	
+						    TCPS.CP_CD ,		/* 가맹점 코드 */
+						    TCPS.PAY_SVC_NM ,	/* 가맹점명 */
+						    TCPS.STAT_CD ,
+						    TCGI.GRP_NM AS cpGrpNm ,		/* 그룹명 */
+						    TEI.ENTP_NM ,		/* 정산법인명 */
+						    TEI.ENTP_ID AS ENTP_ID	/* 정산법인 코드*/
+						FROM TB_CP_PAY_SVC TCPS /*가맹점 결제 서비스 정보*/
+						LEFT JOIN TB_ENTP_INFO TEI ON TEI.ENTP_ID = TCPS.ADJ_ENTP_ID /* 정산법인 정보*/
+						LEFT JOIN TN_CP_GRP_REL TCGR ON TCGR.CP_CD = TCPS.CP_CD /*가맹점 그룹 연관 내역*/
+						LEFT JOIN TN_CP_GRP_INFO TCGI ON TCGI.CP_GRP_ID = TCGR.CP_GRP_ID /*가맹점 그룹 정보*/
+						WHERE 1 = 1
+						<if test="searchClf != null and searchClf != '' ">
+							<choose>
+								<when test="searchClf == 'cpNm' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND UPPER(TCPS.PAY_SVC_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+									</if>
+								</when>
+								<when test="searchClf == 'cpCd' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND TCPS.CP_CD LIKE '%' || #{searchWord} || '%'
+									</if>
+								</when>
+								<when test="searchClf == 'groupNm' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND UPPER(TCGI.GRP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+									</if>
+								</when>
+								<when test="searchClf == 'groupCd' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND TCGI.CP_GRP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+									</if>
+								</when>
+								<when test="searchClf == 'entpId' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND TEI.ENTP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+									</if>
+								</when>
+								<when test="searchClf == 'entpNm' ">
+									<if test="searchWord != null and searchWord !='' ">
+										AND UPPER(TEI.ENTP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+									</if>
+								</when>
+								<otherwise>
+									<if test="searchWord != null and searchWord != '' ">
+										AND (UPPER(TCPS.PAY_SVC_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+												OR TCPS.CP_CD LIKE '%' || #{searchWord} || '%'
+												OR UPPER(TCGI.GRP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%'
+												OR TCGI.CP_GRP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+												OR TEI.ENTP_ID LIKE '%' || TRIM(#{searchWord}) || '%'
+												OR UPPER(TEI.ENTP_NM) LIKE '%' || TRIM(UPPER(#{searchWord})) || '%')
+									</if>
+								</otherwise>
+							</choose>
+						</if>
+						<!-- 가맹점상태 -->
+						<if test="cpStatus != null and cpStatus !='' ">
+							AND TCPS.STAT_CD = #{cpStatus}
+						</if>
+						ORDER BY
+						<choose>
+							<when test="pageParam.sortName == 'entpNm' ">
+								<if test="pageParam.sortOrder == 'asc' ">
+									ENTP_NM ASC
+								</if>
+								<if test="pageParam.sortOrder == 'desc' ">
+									ENTP_NM DESC
+								</if>
+							</when>
+							<when test="pageParam.sortName == 'cpNm' ">									
+								<if test="pageParam.sortOrder == 'asc' ">
+									PAY_SVC_NM ASC
+								</if>
+								<if test="pageParam.sortOrder == 'desc' ">
+									PAY_SVC_NM DESC
+								</if>								
+							</when>
+						</choose>
+	            ) RAW_DATA
+	        ) PAGE_TABLE
+		WHERE IDX BETWEEN #{pageParam.startRow} AND #{pageParam.endRow}
+	</select>		
+</mapper>

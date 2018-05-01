@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.skplanet.impay.ccs.common.service.mapper.MenuMapper">
+
+    <select id="selectMenuTotList" resultType="com.skplanet.impay.ccs.common.model.MenuModel">
+        <![CDATA[
+            SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuTotList, 전체 메뉴 목록 조회, 2015-12-22*/ 
+                   x.*
+              FROM 
+                   (SELECT x.mnu_id, 
+                          x.upr_mnu_id, 
+                          x.mnu_nm, 
+                          x.mnu_url, 
+                          x.mnu_lv, 
+                          x.site_clf_flg, 
+                          x.leaf 
+                     FROM 
+                          (SELECT
+                                 x.mnu_id, 
+                                 x.upr_mnu_id, 
+                                 x.mnu_nm, 
+                                 x.mnu_url, 
+                                 x.site_clf_flg, 
+                                 LEVEL AS mnu_lv, 
+                                 (SELECT COUNT(1) 
+                                   FROM tc_mnu_dtl y 
+                                  WHERE y.upr_mnu_id = x.mnu_id 
+                                 ) leaf 
+                            FROM tc_mnu_dtl x 
+                           WHERE x.site_clf_flg = 'B' START 
+                          WITH x.upr_mnu_id IS NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id 
+                          ORDER siblings BY x.sort_seq 
+                             ) 
+                             x 
+                          UNION ALL 
+                      SELECT x.mnu_id, 
+                             x.upr_mnu_id, 
+                             x.mnu_nm, 
+                             x.mnu_url, 
+                             x.mnu_lv, 
+                             x.site_clf_flg, 
+                             x.leaf 
+                        FROM 
+                             (SELECT /* menuMapper.selectMenuList by.PP58701 */ 
+                                    x.mnu_id, 
+                                    x.upr_mnu_id, 
+                                    x.mnu_nm, 
+                                    x.mnu_url, 
+                                    x.site_clf_flg, 
+                                    LEVEL AS mnu_lv, 
+                                    (SELECT COUNT(1) 
+                                      FROM tc_mnu_dtl y 
+                                     WHERE y.upr_mnu_id = x.mnu_id 
+                                    ) leaf 
+                               FROM tc_mnu_dtl x 
+                              WHERE x.site_clf_flg = 'C' START 
+                             WITH x.upr_mnu_id IS NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id 
+                             ORDER siblings BY x.sort_seq 
+                                ) 
+                                x 
+                             UNION ALL 
+                         SELECT x.mnu_id, 
+                                x.upr_mnu_id, 
+                                x.mnu_nm, 
+                                x.mnu_url, 
+                                x.mnu_lv, 
+                                x.site_clf_flg, 
+                                x.leaf 
+                           FROM 
+                                (SELECT /* menuMapper.selectMenuList by.PP58701 */ 
+                                       x.mnu_id, 
+                                       x.upr_mnu_id, 
+                                       x.mnu_nm, 
+                                       x.mnu_url, 
+                                       LEVEL AS mnu_lv, 
+                                       x.site_clf_flg, 
+                                       (SELECT COUNT(1) 
+                                         FROM tc_mnu_dtl y 
+                                        WHERE y.upr_mnu_id = x.mnu_id 
+                                       ) leaf 
+                                  FROM tc_mnu_dtl x 
+                                 WHERE x.site_clf_flg = 'M' START 
+                                WITH x.upr_mnu_id IS NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id 
+                                ORDER siblings BY x.sort_seq 
+                                   ) 
+                                   x 
+                            ) x 
+        ]]>
+    </select>
+    
+    <select id="selectMenuList" resultType="com.skplanet.impay.ccs.common.model.MenuModel">
+        <![CDATA[
+            SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuList, CCS 메뉴 목록 조회, 2015-12-22*/ 
+                   x.mnu_id, 
+                   x.upr_mnu_id, 
+                   x.mnu_nm, 
+                   x.mnu_url, 
+                   LEVEL AS mnu_lv, 
+                   (SELECT COUNT(1) 
+                     FROM tc_mnu_dtl y 
+                    WHERE y.upr_mnu_id = x.mnu_id 
+                   ) leaf 
+              FROM tc_mnu_dtl x 
+             WHERE x.site_clf_flg = 'C' START 
+            WITH x.upr_mnu_id IS NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id 
+            ORDER siblings BY x.sort_seq 
+        ]]>
+    </select>
+    
+    <select id="selectMenuListByUserId" resultType="com.skplanet.impay.ccs.common.model.MenuModel">
+        SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuListByUserId, CCS 메뉴 목록 조회, 2016-01-12*/ 
+        	   x.mnu_id, 
+               x.upr_mnu_id, 
+               x.mnu_nm, 
+               x.mnu_url, 
+               LEVEL AS mnu_lv, 
+               (SELECT COUNT(1) 
+                 FROM tc_mnu_dtl y 
+                WHERE y.upr_mnu_id = x.mnu_id 
+               ) leaf,
+               '?' || sys_connect_by_path(mnu_nm, ' > ') AS path 
+          FROM 
+               (SELECT x.mnu_id, 
+                      x.upr_mnu_id, 
+                      x.mnu_nm, 
+                      x.use_yn, 
+                      x.mnu_url, 
+                      x.sort_seq, 
+                      x.site_clf_flg 
+                 FROM tc_mnu_dtl x 
+                <if test='mstYn == null or mstYn == "N" '> 
+                WHERE EXISTS 
+                      (SELECT 'X' 
+                        FROM (
+                             SELECT y.mnu_id 
+                               FROM tn_cp_adm x, 
+                                    tn_cp_padm_mnu_auth y 
+                              WHERE 1=1 
+                                    AND x.cp_adm_id = #{userId} 
+                                    AND x.cp_adm_seq = y.cp_adm_seq 
+                             UNION ALL 
+                             SELECT z.mnu_id 
+                               FROM tn_cp_adm x, 
+                                    tn_cp_adm_auth y, 
+                                    tc_pauth_mnu_dtl z 
+                              WHERE 1=1 
+                                    AND x.cp_adm_id = #{userId} 
+                                    AND x.cp_adm_seq = y.cp_adm_seq 
+                                    AND y.auth_grp_cd = z.auth_grp_cd                                     
+                             UNION ALL                             
+                             SELECT y.mnu_id 
+                               FROM tn_user x, 
+                                    tn_puser_mnu_auth y 
+                              WHERE 1=1 
+                                    AND x.user_id = #{userId} 
+                                    AND x.user_seq = y.user_seq                                     
+                             UNION ALL                              
+                             SELECT z.mnu_id 
+                               FROM tn_user x, 
+                                    tn_user_auth y, 
+                                    tc_pauth_mnu_dtl z 
+                              WHERE 1=1 
+                                    AND x.user_id = #{userId} 
+                                    AND x.user_seq = y.user_seq 
+                                    AND y.auth_grp_cd = z.auth_grp_cd 
+                                    
+                             ) y 
+                       WHERE y.mnu_id = x.mnu_id 
+                      ) 
+                </if>
+               ) x 
+         WHERE x.site_clf_flg = 'C' START 
+        WITH x.upr_mnu_id IS NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id 
+        ORDER siblings BY x.sort_seq 
+    </select>
+    
+    <select id="selectMenuPath" parameterType="com.skplanet.impay.ccs.common.model.MenuModel" resultType="com.skplanet.impay.ccs.common.model.MenuModel">
+        <![CDATA[
+            SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuPath, 메뉴 경로 조회, 2015-12-22*/ 
+                   mnu_id, 
+                   upr_mnu_id, 
+                   mnu_nm, 
+                   mnu_url, 
+                   '홈' || sys_connect_by_path(mnu_nm, ' > ') AS path 
+              FROM tc_mnu_dtl 
+             WHERE mnu_id = #{uprMnuId} 
+                   AND site_clf_flg = 'C' START 
+            WITH upr_mnu_id IS NULL CONNECT BY PRIOR mnu_id = upr_mnu_id 
+        ]]>
+    </select>
+    
+    <select id="selectMenuId" parameterType="com.skplanet.impay.ccs.common.model.MenuModel" resultType="com.skplanet.impay.ccs.common.model.MenuModel">
+        <![CDATA[
+            SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuId, 메뉴 ID 조회, 2015-12-22*/
+                   x.mnu_id AS mnu_id,
+                   connect_by_root(x.upr_mnu_id) AS upr_mnu_id 
+              FROM tc_mnu_dtl x 
+             WHERE 1 = 1 
+                   AND x.mnu_url = #{mnuUrl} 
+                   AND ROWNUM < 2 START 
+            WITH x.upr_mnu_id IS NOT NULL CONNECT BY PRIOR x.mnu_id = x.upr_mnu_id
+        ]]>
+    </select>
+    
+    <select id="selectMenuAuthGrp" resultType="com.skplanet.impay.ccs.common.model.MenuAuthGrpModel"> 
+        <![CDATA[
+            WITH x AS 
+                   (SELECT x.auth_grp_cd, 
+                          x.auth_grp_nm, 
+                          x.reg_dt, 
+                          y.mnu_id 
+                     FROM tc_user_auth_grp x, 
+                          tc_pauth_mnu_dtl y 
+                    WHERE x.auth_grp_cd = y.auth_grp_cd(+) 
+                   ) 
+            SELECT /*impay-ccs-web, com/MenuMapper.xml, selectMenuAuthGrp, 메뉴 권한 그룹 조회, 2015-12-22*/ 
+                   x.*, 
+                   SUBSTR(x.auth_grp_cd, 0, 1) AS siteNm 
+              FROM 
+                   (SELECT x.auth_grp_cd, 
+                          x.auth_grp_nm, 
+                          SUBSTR( XMLAGG( XMLELEMENT(COL ,',', x.mnu_id) 
+                 ORDER BY x.reg_dt ).EXTRACT('//text()'
+             
+                          ).GETSTRINGVAL() , 2) mnu_id 
+                     FROM x 
+                    GROUP BY x.auth_grp_cd, 
+                          x.auth_grp_nm 
+                   ) x 
+        ]]>
+    </select>
+    
+</mapper>
