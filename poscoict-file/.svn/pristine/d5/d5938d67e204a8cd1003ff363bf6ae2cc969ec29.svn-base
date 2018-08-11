@@ -1,0 +1,6 @@
+# Embeded Server Configuration
+server.port=8889
+server.tomcat.uri-encoding=UTF-8
+
+# Logger Configuration
+logging.config=classpath:config/logback/logback-spring-local.xml

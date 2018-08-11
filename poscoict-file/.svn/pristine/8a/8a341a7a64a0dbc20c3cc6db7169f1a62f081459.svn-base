@@ -1,0 +1,244 @@
+package kr.co.poscoict.file.common.util;
+
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import javax.imageio.ImageIO;
+
+import org.apache.commons.io.FilenameUtils;
+import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
+
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.imaging.ImageProcessingException;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.MetadataException;
+import com.drew.metadata.exif.ExifIFD0Directory;
+import com.mortennobel.imagescaling.AdvancedResizeOp;
+import com.mortennobel.imagescaling.ResampleOp;
+
+import kr.co.poscoict.file.common.model.img.ImageDef;
+import kr.co.poscoict.file.common.model.img.ImageInfo;
+import kr.co.poscoict.file.common.model.img.ImageShape;
+
+/**
+ * Image Util class
+ * @author Sangjun, Park
+ *
+ */
+@Component
+public class ImageUtil {
+	public final int RATIO = 0;
+	public final int SAME = -1;
+	
+	/**
+	 * 이미지 리사이징
+	 * <p>원본파일을 리사이징 한다.</p>
+	 * <p>리사이징할 해상도는 {@link ImageDef}를 통해 결정한다.</p>
+	 * <pre>
+	 * Path imagePath = ...
+	 * ImageUtil.resize(imagePath, ImageDef.HD);	// HD (1280x720)
+	 * ImageUtil.resize(imagePath, ImageDef.FHD);	// Full-HD (1920x1080)
+	 * </pre>
+	 * @param source
+	 * @param imageDef
+	 * @throws IOException
+	 * @throws InterruptedException
+	 * @throws MetadataException 
+	 * @throws ImageProcessingException 
+	 */
+	public void resize(Path source, ImageDef imageDef)
+			throws IOException, InterruptedException, ImageProcessingException, MetadataException {
+		BufferedImage srcImg = this.getRotateImage(source);
+		if(!imageDef.isSmall(srcImg.getWidth(), srcImg.getHeight())) {
+			ImageInfo imageInfo = ImageInfoFactory.getImageInfo(imageDef, ImageShape.getImageShape(srcImg.getWidth(), srcImg.getHeight()));
+			
+			if(imageInfo.getImageShape() == ImageShape.HORIZONTAL) {
+				resize(source, imageInfo.getWidth(), RATIO);
+			} else {
+				resize(source, RATIO, imageInfo.getHeight());
+			}
+		} else {
+			this.imageRescaling(srcImg, srcImg.getWidth(), srcImg.getHeight(), source, null);
+		}
+	}
+	
+	/**
+	 * 이미지 리사이징
+	 * <p>원본파일을 리사이징 한다.</p>
+	 * <p>동일 크기로 만들 경우, {@link ImageUtil#SAME}, 다른쪽에 따른 비율로 변환할 경우, {@link ImageUtil#RATIO} 를 파라미터로 넣어준다.</p>
+	 * <pre>
+	 * Path imagePath = ...
+	 * ImageUtil.resize(imagePath, 1920, 1080);
+	 * ImageUtil.resize(imagePath, ImageUtil.SAME, 1080);
+	 * ImageUtil.resize(imagePath, 1920, ImageUtil.RATIO);
+	 * </pre>
+	 * @param source : 변환할 원본파일
+	 * @param width : 리사이징 할 이미지 너비
+	 * @param height : 리사이징 할 이미지 높이
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 * @throws MetadataException 
+	 * @throws ImageProcessingException 
+	 */
+	public void resize(Path source, int width, int height)
+			throws IOException, InterruptedException, ImageProcessingException, MetadataException {
+		resize(source, null, width, height);
+	}
+	
+	/**
+	 * 이미지 리사이징
+	 * <p>원본파일을 리사이징 하여 원하는 위치에 해당 이미지 파일을 생성한다.</p>
+	 * <p>동일 크기로 만들 경우, {@link ImageUtil#SAME}, 다른쪽에 따른 비율로 변환할 경우, {@link ImageUtil#RATIO} 를 파라미터로 넣어준다.</p>
+	 * <pre>
+	 * Path imagePath = ...
+	 * Path targetPath = ...
+	 * ImageUtil.resize(imagePath, targetPath, 1920, 1080);
+	 * ImageUtil.resize(imagePath, targetPath, ImageUtil.SAME, 1080);
+	 * ImageUtil.resize(imagePath, targetPath, 1920, ImageUtil.RATIO);
+	 * </pre>
+	 * @param source : 변환할 원본파일
+	 * @param target : 변환된 파일위치
+	 * @param width : 리사이징 할 이미지 너비
+	 * @param height : 리사이징 할 이미지 높이
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 * @throws MetadataException 
+	 * @throws ImageProcessingException 
+	 */
+	public void resize(Path source, Path target, int width, int height)
+			throws IOException, InterruptedException, ImageProcessingException, MetadataException {
+		Assert.notNull(source, "Image file must not be null.");
+		BufferedImage srcImg = this.getRotateImage(source);
+		
+		int srcWidth = srcImg.getWidth(null);
+		int srcHeight = srcImg.getHeight(null);
+		
+		int destWidth = -1;
+		int destHeight = -1;
+		
+		if(width == SAME) {
+			destWidth = srcWidth;
+		} else if(width > 0) {
+			destWidth = width;
+		}
+		
+		if(height == SAME) {
+			destHeight = srcHeight;
+		} else if(height > 0) {
+			destHeight = height;
+		}
+		
+		if(width == RATIO && height == RATIO) {
+			destWidth = srcWidth;
+			destHeight = srcHeight;
+		} else if(width == RATIO) {
+			double ratio = ((double) destHeight) / ((double) srcHeight);
+			destWidth = (int) ((double) srcWidth * ratio);
+		} else if(height == RATIO) {
+			double ratio = ((double) destWidth) / ((double) srcWidth);
+			destHeight = (int) ((double) srcHeight * ratio);
+		}
+		this.imageRescaling(srcImg, destWidth, destHeight, source, target);
+	}
+	
+	/**
+	 * 이미지 리스케일링
+	 * @param srcImg
+	 * @param destWidth
+	 * @param destHeight
+	 * @param source
+	 * @param target
+	 * @throws IOException
+	 */
+	private void imageRescaling(BufferedImage srcImg, int destWidth, int destHeight, Path source, Path target) throws IOException {
+		if(target == null) {
+			target = Paths.get(source.toAbsolutePath().toString());
+		}
+		ResampleOp resampleOp = new ResampleOp(destWidth, destHeight);
+		resampleOp.setUnsharpenMask(AdvancedResizeOp.UnsharpenMask.Soft);
+		BufferedImage rescaleImage = resampleOp.filter(srcImg, null);
+		ImageIO.write(rescaleImage, FilenameUtils.getExtension(source.toString()), target.toFile());
+	}
+	
+	/**
+	 * 정위치로 회전한 이미지 추출
+	 * @param source
+	 * @return
+	 * @throws ImageProcessingException
+	 * @throws MetadataException
+	 * @throws IOException
+	 */
+	private BufferedImage getRotateImage(Path source) throws ImageProcessingException, MetadataException, IOException {
+		File sourceFile = source.toFile();
+		return this.rotateImage(ImageIO.read(sourceFile), this.getOrientation(sourceFile));
+	}
+	
+	/**
+	 * 이미지 Metadata의 Orientation값 추출
+	 * @param file
+	 * @return
+	 * <pre>
+	 * 1 : 정방향
+	 * 2 : 좌우 반전
+	 * 3 : 거꾸로된 방향
+	 * 4 : 상하 반전
+	 * 5 : 좌우 반전 후 왼쪽으로 누운 사진
+	 * 6 : 왼쪽으로 누운 사진
+	 * 7 : 좌우 반전 후 오른쪽으로 누운 사진
+	 * 8 : 오른쪽으로 누운 사진
+	 * </pre>
+	 * @throws ImageProcessingException
+	 * @throws IOException
+	 * @throws MetadataException
+	 */
+	private int getOrientation(File file) throws ImageProcessingException, IOException, MetadataException {
+		Metadata metadata = ImageMetadataReader.readMetadata(file);
+		Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+		return directory == null ? 1 : directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
+	}
+	
+	/**
+	 * 이미지 회전
+	 * @param bi
+	 * @param orientation
+	 * @return
+	 */
+	private BufferedImage rotateImage(final BufferedImage bi, final int orientation) {
+		Radians radians = Radians.getRadians(orientation);
+		if(radians == null) {
+			return bi;
+		}
+		return this.rotateImage(bi, radians);
+	}
+
+	/**
+	 * 이미지 회전
+	 * @param originImage
+	 * @param radians
+	 * @return
+	 */
+	private BufferedImage rotateImage(final BufferedImage originImage, final Radians radians) {
+		BufferedImage newImage = null;
+		switch(radians) {
+		case R_90: case R_270: 
+			newImage = new BufferedImage(originImage.getHeight(), originImage.getWidth(), originImage.getType());
+			break;
+		case R_180:
+			newImage = new BufferedImage(originImage.getWidth(), originImage.getHeight(), originImage.getType());
+			break;
+		default:
+			return originImage;
+		}
+		Graphics2D graphics = newImage.createGraphics();
+		graphics.rotate(Math.toRadians(radians.getDegree()), newImage.getWidth() / 2, newImage.getHeight() / 2);
+		graphics.translate((newImage.getWidth() - originImage.getWidth()) / 2, (newImage.getHeight() - originImage.getHeight()) / 2);
+		graphics.drawImage(originImage, 0, 0, originImage.getWidth(), originImage.getHeight(), null);
+		return newImage;
+	}
+}

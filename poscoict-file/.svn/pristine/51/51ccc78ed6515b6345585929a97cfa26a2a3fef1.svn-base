@@ -1,0 +1,18 @@
+package kr.co.poscoict.file.common.except;
+
+public class ResourceNotFoundException extends RuntimeException {
+	private static final long serialVersionUID = 8908100543787414559L;
+	
+	public ResourceNotFoundException() {
+        super();
+    }
+    public ResourceNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+    public ResourceNotFoundException(Throwable cause) {
+        super(cause);
+    }
+}

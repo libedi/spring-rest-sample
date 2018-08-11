@@ -1,0 +1,34 @@
+package kr.co.poscoict.file.framework.config;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * AOP Logging Configuration
+ * @author Sangjun, Park
+ *
+ */
+@Component
+@Aspect
+public class LoggerAspect {
+	private static final Logger logger = LoggerFactory.getLogger(LoggerAspect.class);
+	
+	@Before("execution(* kr.co.poscoict..*Controller.*(..))"
+			+ " or execution(* kr.co.poscoict..*Service.*(..))"
+			+ " or execution(* kr.co.poscoict..*Mapper.*(..))")
+	public void beforeLogging(JoinPoint joinPoint) {
+		logger.debug("Before: {}", joinPoint);
+	}
+	
+	@AfterReturning("execution(* kr.co.poscoict..*Controller.*(..))"
+			+ " or execution(* kr.co.poscoict..*Service.*(..))"
+			+ " or execution(* kr.co.poscoict..*Mapper.*(..))")
+	public void returnLogging(JoinPoint joinPoint) {
+		logger.debug("Completed: {}", joinPoint);
+	}
+}

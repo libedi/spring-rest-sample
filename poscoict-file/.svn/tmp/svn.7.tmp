@@ -1,0 +1,16 @@
+# Embeded Server Configuration
+server.port=8889
+server.tomcat.uri-encoding=UTF-8
+
+# DataSource Configuration
+spring.datasource.driver-class-name=oracle.jdbc.driver.OracleDriver
+spring.datasource.url=jdbc:oracle:thin:@203.241.0.111:1522:TST1
+spring.datasource.username=apps
+spring.datasource.password=pos0411
+spring.datasource.sql-script-encoding=UTF-8
+spring.datasource.test-while-idle=true
+spring.datasource.time-between-eviction-runs-millis=600000
+spring.datasource.validation-query=select 1 from dual
+
+# Logger Configuration
+logging.config=classpath:config/logback/logback-spring-local.xml

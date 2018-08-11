@@ -1,0 +1,23 @@
+package kr.co.poscoict.file.common.model.img;
+
+import java.util.Arrays;
+
+import org.apache.commons.lang3.StringUtils;
+
+/**
+ * 이미지 파일 형식
+ * @author Sangjun, Park
+ *
+ */
+public enum Images {
+	JPG, JPEG, JPE, PNG, GIF, BMP;
+	
+	/**
+	 * 이미지 파일 여부
+	 * @param ext
+	 * @return
+	 */
+	public static boolean isImage(String ext) {
+		return Arrays.asList(Images.values()).stream().anyMatch(image -> StringUtils.equalsIgnoreCase(ext, image.toString()));
+	}
+}

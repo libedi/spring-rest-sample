@@ -1,0 +1,4 @@
+# API Message
+api.error.conflict=Conflict
+api.error.serverError=Internal Server Error
+api.error.notFound=Not Found

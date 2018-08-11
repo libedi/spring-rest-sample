@@ -1,0 +1,139 @@
+package kr.co.poscoict.file.main.controller;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.drew.imaging.ImageProcessingException;
+
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import kr.co.poscoict.file.common.util.FileDownloadView;
+import kr.co.poscoict.file.common.util.MessageSourceUtil;
+import kr.co.poscoict.file.main.model.FileInfo;
+import kr.co.poscoict.file.main.service.FileService;
+
+/**
+ * File Controller
+ * @author Sangjun, Park
+ *
+ */
+@RestController
+public class FileController {
+	@Autowired
+	private FileService fileService;
+	
+	@Autowired
+	private FileDownloadView fileDownloadView;
+	
+	@Autowired
+	private MessageSourceUtil messageSource;
+	
+	/**
+	 * File 조회
+	 * @return
+	 * @throws FileNotFoundException 
+	 */
+	@ApiOperation(value = "파일정보 조회")
+	@ApiResponses({
+		@ApiResponse(code = 200, message = "조회성공"),
+		@ApiResponse(code = 404, message = "파일 미존재")
+	})
+	@GetMapping(path = "/files", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@ResponseStatus(HttpStatus.OK)
+	public List<FileInfo> getFileList() throws FileNotFoundException {
+		List<FileInfo> list = this.fileService.getFileList();
+		if(list.isEmpty()) {
+			throw new FileNotFoundException(messageSource.getMessage("msg.file.not-found"));
+		}
+		return list;
+	}
+	
+	/**
+	 * File Upload
+	 * @param multipartFile
+	 * @throws IOException
+	 * @throws IllegalStateException
+	 * @throws InterruptedException
+	 * @throws ImageProcessingException 
+	 */
+	@ApiOperation(value = "파일 업로드")
+	@ApiResponses({
+		@ApiResponse(code = 201, message = "업로드 성공")
+	})
+	@PostMapping(path = "/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	public FileInfo upload(
+			@ApiParam(value = "파일 데이터") @RequestParam("files") MultipartFile multipartFile)
+			throws IOException, IllegalStateException, InterruptedException, ImageProcessingException {
+		return this.fileService.upload(multipartFile);
+	}
+	
+	/**
+	 * File Download
+	 * @param fileInfo
+	 * @return
+	 */
+	@ApiOperation(value = "파일 다운로드")
+	@ApiResponses({
+		@ApiResponse(code = 200, message = "다운로드 성공")
+	})
+	@GetMapping(path = "/files/{id}")
+	@ResponseStatus(HttpStatus.OK)
+	public ModelAndView download(@ApiParam(value = "파일ID") @PathVariable String id) {
+		FileInfo fileInfo = new FileInfo();
+		fileInfo.setFileId(id);
+		Map<String, Object> model = new HashMap<>();
+		model.put("model", this.fileService.download(fileInfo));
+		return new ModelAndView(this.fileDownloadView, model);
+	}
+	
+	/**
+	 * File Download API
+	 * @param id
+	 * @param response
+	 */
+	@ApiOperation(value = "외부 서버 파일 다운로드")
+	@ApiResponses({
+		@ApiResponse(code = 200, message = "다운로드 성공")
+	})
+	@GetMapping(path = "/api/files/{id}")
+	@ResponseStatus(HttpStatus.OK)
+	public ModelAndView downloadApi(@ApiParam(value = "파일ID") @PathVariable String id) {
+		Map<String, Object> model = new HashMap<>();
+		model.put("model", this.fileService.downloadApi(id));
+		return new ModelAndView(this.fileDownloadView, model);
+	}
+	
+	/**
+	 * File Delete
+	 * @param id
+	 * @throws IOException 
+	 */
+	@ApiOperation(value = "파일 삭제")
+	@ApiResponses({
+		@ApiResponse(code = 200, message = "파일삭제 성공")
+	})
+	@DeleteMapping(path = "/files/{id}")
+	@ResponseStatus(HttpStatus.OK)
+	public void delete(@ApiParam(value = "파일ID") @PathVariable String id) throws IOException {
+		this.fileService.delete(id);
+	}
+}

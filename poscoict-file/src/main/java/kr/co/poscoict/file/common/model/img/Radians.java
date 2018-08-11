@@ -1,0 +1,38 @@
+package kr.co.poscoict.file.common.model.img;
+
+import java.util.Arrays;
+
+/**
+ * 이미지 각도 Enum class
+ * @author Sangjun, Park
+ *
+ */
+public enum Radians {
+	R_0(1, 0), R_90(6, 90), R_180(3, 180), R_270(8, 270);
+	
+	private int orientation;
+	private int degree;
+	
+	private Radians(int orientation, int degree) {
+		this.orientation = orientation;
+		this.degree = degree;
+	}
+	
+	public int getOrientation() {
+		return this.orientation;
+	}
+	
+	public int getDegree() {
+		return this.degree;
+	}
+	
+	/**
+	 * Orientation 값에 해당하는 Radians 조회
+	 * @param orientation
+	 * @return
+	 */
+	public static Radians getRadians(int orientation) {
+		return Arrays.asList(Radians.values()).stream().filter(r -> r.orientation == orientation).findFirst().get();
+	}
+	
+}

@@ -1,0 +1,39 @@
+package kr.co.poscoict.file.common.handler;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestClientException;
+
+/**
+ * RestTemplate Exception Handler
+ * @author Sangjun, Park
+ *
+ */
+@ControllerAdvice
+public class RestTemplateExceptionHandler {
+	private static final Logger logger = LoggerFactory.getLogger(RestTemplateExceptionHandler.class);
+	
+	@ExceptionHandler(value = HttpClientErrorException.class)
+	public String handleClientErrorException(HttpClientErrorException e) {
+		logger.error("HTTP CLIENT ERROR : {} - {}", e.getStatusCode(), e.getStatusText());
+		logger.error("HTTP CLIENT ERROR : {}", e.getResponseBodyAsString(), e);
+		return "error/error";
+	}
+	
+	@ExceptionHandler(value = HttpServerErrorException.class)
+	public String handlerServerErrorException(HttpServerErrorException e) {
+		logger.error("HTTP SERVER ERROR : {} - {}", e.getStatusCode(), e.getStatusText());
+		logger.error("HTTP SERVER ERROR : {}", e.getResponseBodyAsString(), e);
+		return "error/error";
+	}
+	
+	@ExceptionHandler(value = RestClientException.class)
+	public String handlerRestClientException(RestClientException e) {
+		logger.error("REST CLIENT ERROR : {} - {}", e.getMessage(), e);
+		return "error/error";
+	}
+}

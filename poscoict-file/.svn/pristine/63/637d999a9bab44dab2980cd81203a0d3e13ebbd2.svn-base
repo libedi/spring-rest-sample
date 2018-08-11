@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.poscoict.file.main.mapper.FileMapper">
+	<!-- 업로드 파일 정보 등록 -->
+	<insert id="insertFile" parameterType="kr.co.poscoict.file.main.model.FileInfo">
+		<selectKey keyProperty="fileId" resultType="string" order="BEFORE">
+			SELECT
+				CASE
+					WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') = SUBSTR(NVL(MAX(FILE_ID), '9999123199999'), 0, 8)
+						THEN TO_CHAR(SYSDATE, 'YYYYMMDD') || LPAD(MOD(TO_NUMBER(SUBSTR(MAX(FILE_ID), 9)) + 1, 100000), 5, 0)
+					ELSE TO_CHAR(SYSDATE, 'YYYYMMDD') || '00000'
+				END AS FILE_ID
+			FROM MW_TB_ATTACH
+		</selectKey>
+		INSERT INTO MW_TB_ATTACH (
+			  FILE_ID 
+			, UPLOAD_PATH
+			, UPLOAD_FILE_NM
+			, ORIGINAL_FILE_NM
+			, CREATION_DATE
+		) VALUES (
+			  #{fileId}
+			, #{uploadPath}
+			, #{uploadFileNm}
+			, #{originalFileNm}
+			, SYSDATE
+		)
+	</insert>
+	
+	<!-- 업로드 파일 정보 조회 -->
+	<select id="selectFileList" parameterType="kr.co.poscoict.file.main.model.FileInfo" resultType="kr.co.poscoict.file.main.model.FileInfo">
+		SELECT
+			  FILE_ID
+			, UPLOAD_PATH
+			, UPLOAD_FILE_NM
+			, ORIGINAL_FILE_NM
+		FROM MW_TB_ATTACH
+		<where>
+			<if test='fileId != null and fileId != ""'>
+			FILE_ID = #{fileId}
+			</if>
+			<if test='uploadPath != null and uploadPath != ""'>
+			AND UPLOAD_PATH = #{uploadPath}
+			</if>
+			<if test='uploadFileNm != null and uploadFileNm != ""'>
+			AND UPLOAD_FILE_NM = #{uploadFileNm}
+			</if>
+			<if test='originalFileNm != null and originalFileNm != ""'>
+			AND ORIGINAL_FILE_NM = #{originalFileNm}
+			</if>
+		</where>
+	</select>
+	
+	<delete id="deleteFile" parameterType="string">
+		DELETE FROM MW_TB_ATTACH
+		WHERE FILE_ID = #{_parameter}
+	</delete>
+</mapper>
